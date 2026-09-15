@@ -19,10 +19,21 @@ import UIKit
 ///
 /// - **Menu Structure**: Supplies the ordered section layout and the set of pinned rows
 /// - **Pinning**: Persists pinned rows to Scyther's preferences suite, oldest pin first
+/// - **Row Values**: Snapshots the fixed device and application facts the value rows show
 /// - **Network Information**: Asynchronously fetches and displays the device's current IP address
 /// - **Animation Controls**: Manages slow animations mode for UI debugging
 /// - **View Debugging**: Controls visibility of view frames and sizes
 /// - **Automatic Synchronization**: Two-way binding with ``InterfaceToolkit`` settings
+///
+/// ## Everything localised is held, not recomputed
+///
+/// ``sections`` and the search index both hold resolved copy, and both are stored rather than
+/// computed, because `MenuView` reads them repeatedly while it renders — once per row for the count
+/// pass and once for the render pass. Recomputing them there is what made opening the menu slow:
+/// each rebuild resolves every section title, and each keystroke rebuilt the whole search index.
+/// ``refreshLocalizedContent()`` rebuilds both, and only the two things that can change what the
+/// copy says trigger it: the effective language, and the menu reappearing (which is how a
+/// pseudo-localisation switch flipped on its own page gets picked up).
 ///
 /// ## Usage
 ///
@@ -63,6 +74,12 @@ import UIKit
 /// - ``isPinned(_:)``
 /// - ``togglePin(for:)``
 /// - ``developerOption(named:)``
+/// - ``refreshLocalizedContent()``
+///
+/// ### Row Values
+///
+/// - ``valueDescription(for:)``
+/// - ``tokenValue(for:)``
 ///
 /// ### Search
 ///
@@ -118,6 +135,9 @@ class MenuViewModel: ViewModel {
     /// The breakpoint store this view model mirrors.
     private let breakpointStore: BreakpointStore
 
+    /// The language override whose changes re-resolve every title this view model holds.
+    private let languageOverride: LanguageOverride
+
     /// Keeps the override store's publishers alive for the lifetime of the menu.
     private var cancellables: Set<AnyCancellable> = []
 
@@ -155,7 +175,9 @@ class MenuViewModel: ViewModel {
     /// The identifiers of pinned rows, in the order they were pinned.
     ///
     /// An array rather than a `Set` so that oldest-first pin order survives a relaunch.
-    @Published private(set) var pinnedItemIDs: [String]
+    @Published private(set) var pinnedItemIDs: [String] {
+        didSet { pinnedItems = Self.resolvePinnedItems(from: pinnedItemIDs, in: sections) }
+    }
 
     /// A snapshot of ``Scyther/developerOptions``, taken once when the view model is created.
     ///
@@ -170,8 +192,33 @@ class MenuViewModel: ViewModel {
     private let developerOptions: [DeveloperOption]
 
     /// The full menu layout, including any host-supplied developer options.
-    var sections: [MenuSection] {
-        MenuSection.allSections(developerOptions: developerOptions)
+    ///
+    /// Stored, not computed: every section header here is resolved copy, and `MenuView` reads this
+    /// several times per body. Rebuilt only by ``refreshLocalizedContent()``.
+    @Published private(set) var sections: [MenuSection]
+
+    /// The pinned rows, oldest pin first.
+    ///
+    /// Stored identifiers that no longer resolve to a row currently present in ``sections``
+    /// are dropped. This covers both a feature removed in a later version of Scyther and a
+    /// developer option the host app no longer registers.
+    ///
+    /// Maintained alongside ``pinnedItemIDs`` rather than computed from it, because computing it
+    /// meant rebuilding and flattening every section — twice per menu body, since `MenuView` asks
+    /// whether there are any pins before it renders them.
+    private(set) var pinnedItems: [MenuItem]
+
+    /// Resolves stored pin identifiers against the rows the menu is actually showing.
+    ///
+    /// - Parameters:
+    ///   - ids: The persisted identifiers, oldest pin first.
+    ///   - sections: The layout the pins must resolve against.
+    /// - Returns: The pinned rows, in pin order, without any that no longer exist.
+    private static func resolvePinnedItems(from ids: [String], in sections: [MenuSection]) -> [MenuItem] {
+        let available = Set(sections.flatMap(\.items))
+        return ids
+            .compactMap(MenuItem.init(id:))
+            .filter { available.contains($0) }
     }
 
     /// Resolves a host-supplied developer option by name.
@@ -189,16 +236,22 @@ class MenuViewModel: ViewModel {
         developerOptions.first { $0.name == name }
     }
 
-    /// The pinned rows, oldest pin first.
+    /// Re-resolves everything this view model holds that is localised copy: ``sections`` and the
+    /// search index.
     ///
-    /// Stored identifiers that no longer resolve to a row currently present in ``sections``
-    /// are dropped. This covers both a feature removed in a later version of Scyther and a
-    /// developer option the host app no longer registers.
-    var pinnedItems: [MenuItem] {
-        let available = Set(sections.flatMap(\.items))
-        return pinnedItemIDs
-            .compactMap(MenuItem.init(id:))
-            .filter { available.contains($0) }
+    /// Called when the effective language changes, and on every reappearance of the menu — which is
+    /// what picks up a pseudo-localisation mode switched on from its own page, since that page is
+    /// pushed on top of this one.
+    ///
+    /// ``sections`` is only republished when the rebuild differs, so a reappearance that changed
+    /// nothing does not invalidate every row in the list.
+    func refreshLocalizedContent() {
+        let rebuilt = MenuSection.allSections(developerOptions: developerOptions)
+        if rebuilt != sections {
+            sections = rebuilt
+            pinnedItems = Self.resolvePinnedItems(from: pinnedItemIDs, in: rebuilt)
+        }
+        searchIndex = nil
     }
 
     /// Creates a menu view model.
@@ -212,27 +265,43 @@ class MenuViewModel: ViewModel {
     ///     tiers available on this device; tests inject mocks.
     ///   - assistedSearchDelay: The typing pause before assistants run. Defaults to
     ///     300 ms; tests inject something shorter.
+    ///   - languageOverride: The override this view model follows, so a language picked on the
+    ///     Language page re-resolves every title it holds.
+    ///   - deviceValues: Reads the fixed device and application facts. Defaults to
+    ///     ``MenuDeviceValues/current()``, read once on first use; tests inject a stub. Optional
+    ///     rather than defaulted to the function itself so that `MenuView`, which is not
+    ///     main-actor isolated where it creates this, never has to name a main-actor function.
     init(
         defaults: UserDefaults = .scyther,
         assistants: [any MenuSearchAssistant] = MenuSearchAssistants.available(),
         assistedSearchDelay: Duration = .milliseconds(300),
         networkRuleStore: NetworkRuleStore = .shared,
         conditioningStore: NetworkConditioningStore = .shared,
-        breakpointStore: BreakpointStore = .shared
+        breakpointStore: BreakpointStore = .shared,
+        languageOverride: LanguageOverride = .shared,
+        deviceValues: (() -> [MenuItem: String])? = nil
     ) {
+        let developerOptions = Scyther.developerOptions
+        let sections = MenuSection.allSections(developerOptions: developerOptions)
+        let pinnedItemIDs = defaults.stringArray(forKey: Self.pinnedItemsKey) ?? []
+
         self.defaults = defaults
-        self.developerOptions = Scyther.developerOptions
-        self.pinnedItemIDs = defaults.stringArray(forKey: Self.pinnedItemsKey) ?? []
+        self.developerOptions = developerOptions
+        self.sections = sections
+        self.pinnedItemIDs = pinnedItemIDs
+        self.pinnedItems = Self.resolvePinnedItems(from: pinnedItemIDs, in: sections)
         self.assistants = assistants
         self.assistedSearchDelay = assistedSearchDelay
         self.networkRuleStore = networkRuleStore
         self.conditioningStore = conditioningStore
         self.breakpointStore = breakpointStore
+        self.languageOverride = languageOverride
+        self.deviceValuesProvider = deviceValues
         super.init()
     }
 
     /// Mirrors both networking stores so ``enabledOverrideCount`` and ``conditioningSummary``
-    /// are live.
+    /// are live, and follows the language override so every title stays in the effective language.
     ///
     /// Subscribing rather than reading once on appearance: an override can be enabled from the
     /// overrides screen, from a swipe on its row, or from `Scyther.network.rules` while the menu
@@ -241,6 +310,10 @@ class MenuViewModel: ViewModel {
     /// here or the badge keeps reading a count for overrides that are standing down. No
     /// `receive(on:)` — the store and this view model are both main-actor isolated, so the values
     /// already arrive on the main thread.
+    ///
+    /// The language subscription is what makes holding ``sections`` safe. ``LanguageOverride``
+    /// sends its change *after* installing the new bundle and locale, so rebuilding on receipt
+    /// resolves in the language just picked rather than the one being left.
     override func setup() {
         super.setup()
         networkRuleStore.$rules
@@ -264,6 +337,11 @@ class MenuViewModel: ViewModel {
             .combineLatest(breakpointStore.$isEnabled)
             .sink { [weak self] breakpoints, isEnabled in
                 self?.enabledBreakpointCount = isEnabled ? breakpoints.filter(\.isEnabled).count : 0
+            }
+            .store(in: &cancellables)
+        languageOverride.objectWillChange
+            .sink { [weak self] _ in
+                self?.refreshLocalizedContent()
             }
             .store(in: &cancellables)
     }
@@ -305,6 +383,51 @@ class MenuViewModel: ViewModel {
         pinnedItemIDs = defaults.stringArray(forKey: Self.pinnedItemsKey) ?? []
     }
 
+    // MARK: - Row Values
+
+    /// The fixed device and application facts, read once on first use — see ``MenuDeviceValues``.
+    private lazy var deviceValues: [MenuItem: String] = deviceValuesProvider?() ?? MenuDeviceValues.current()
+
+    /// Supplies ``deviceValues``, so a test can hand in a stub and count how often it is read.
+    private let deviceValuesProvider: (() -> [MenuItem: String])?
+
+    /// The static description shown trailing a value row, or `nil` for rows whose content is not a
+    /// plain value.
+    ///
+    /// Device and application facts come from a snapshot taken once per menu: they cannot change
+    /// while the process runs, and reading them is not free — the App ID Prefix is a keychain
+    /// query that *writes* an item when it finds none, and the build date stats `Info.plist`.
+    /// `MenuView` used to read them inside every row's body, so scrolling paid for them again and
+    /// again.
+    ///
+    /// Push tokens are deliberately read live: the host app sets them, possibly after the menu is
+    /// already open.
+    ///
+    /// - Parameter item: The row.
+    /// - Returns: The row's trailing value, or `nil` for navigation, toggle and developer-option
+    ///   rows, and for ``MenuItem/ipAddress`` which loads asynchronously.
+    func valueDescription(for item: MenuItem) -> String? {
+        switch item {
+        case .apnsToken, .fcmToken:
+            return tokenValue(for: item) ?? localized("Not set")
+        default:
+            return deviceValues[item]
+        }
+    }
+
+    /// The push token behind ``MenuItem/apnsToken`` / ``MenuItem/fcmToken``, or `nil` when the
+    /// host app hasn't set it yet.
+    ///
+    /// - Parameter item: The token row.
+    /// - Returns: The token, or `nil` when it is unset or `item` is not a token row.
+    func tokenValue(for item: MenuItem) -> String? {
+        switch item {
+        case .apnsToken: return Scyther.apnsToken
+        case .fcmToken: return Scyther.fcmToken
+        default: return nil
+        }
+    }
+
     // MARK: - Search
 
     /// The current global-search query, bound to `MenuView`'s search field.
@@ -314,14 +437,29 @@ class MenuViewModel: ViewModel {
         didSet { scheduleAssistedSearch() }
     }
 
+    /// The search index, built on first use and dropped by ``refreshLocalizedContent()``.
+    ///
+    /// Every entry carries a resolved title and breadcrumb, so building it resolves well over a
+    /// hundred strings. It used to be rebuilt on each keystroke, by both the synchronous results
+    /// and the assisted pipeline.
+    private var searchIndex: [MenuSearchEntry]?
+
+    /// The search index, building it if this is the first ask since the copy last changed.
+    private func indexedEntries() -> [MenuSearchEntry] {
+        if let searchIndex { return searchIndex }
+        let built = MenuSearchIndex.entries(developerOptions: developerOptions)
+        searchIndex = built
+        return built
+    }
+
     /// The synchronous search results for ``searchText`` — exact and alias matches.
     ///
-    /// Delegates to ``MenuSearchIndex/entries(matching:developerOptions:)`` using the
-    /// same developer-options snapshot ``sections`` is built from, so a host-supplied
-    /// row is searchable exactly when it is visible. Empty while ``searchText`` is
-    /// empty or whitespace.
+    /// Filters ``indexedEntries()``, which is built from the same developer-options snapshot
+    /// ``sections`` is, so a host-supplied row is searchable exactly when it is visible. Empty
+    /// while ``searchText`` is empty or whitespace, and in that case the index is not built at all.
     var searchResults: [MenuSearchEntry] {
-        MenuSearchIndex.entries(matching: searchText, developerOptions: developerOptions)
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        return MenuSearchIndex.entries(matching: searchText, in: indexedEntries())
     }
 
     /// Results contributed by the fuzzy tiers (``MenuSearchAssistant``), already
@@ -357,7 +495,7 @@ class MenuViewModel: ViewModel {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty, !assistants.isEmpty else { return }
 
-        let entries = MenuSearchIndex.entries(developerOptions: developerOptions)
+        let entries = indexedEntries()
         assistedSearchTask = Task { [weak self, assistants, assistedSearchDelay] in
             try? await Task.sleep(for: assistedSearchDelay)
             guard !Task.isCancelled else { return }
@@ -537,8 +675,10 @@ class MenuViewModel: ViewModel {
     /// Reloads ``pinnedItemIDs`` from ``defaults`` — see ``reloadPinnedItemIDs()`` — so pins
     /// changed while the menu was off screen (a reset of the Scyther store, or a hand-edit of
     /// `Scyther.Menu.PinnedItems` in the UserDefaults browser) are reflected immediately on
-    /// return. Deliberately does not re-run ``loadIPAddress()``, which stays confined to
-    /// ``onFirstAppear()``.
+    /// return. Also re-resolves the localised copy this view model holds — see
+    /// ``refreshLocalizedContent()`` — which is how a pseudo-localisation mode switched on its own
+    /// page, pushed from this one, reaches the section headers. Deliberately does not re-run
+    /// ``loadIPAddress()``, which stays confined to ``onFirstAppear()``.
     ///
     /// - Important: Always call `await super.onSubsequentAppear()` to ensure proper lifecycle
     ///   tracking.
@@ -546,6 +686,7 @@ class MenuViewModel: ViewModel {
         await super.onSubsequentAppear()
 
         reloadPinnedItemIDs()
+        refreshLocalizedContent()
     }
 
     // MARK: - Private Methods

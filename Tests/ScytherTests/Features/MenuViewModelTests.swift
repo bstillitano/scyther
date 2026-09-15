@@ -536,5 +536,118 @@ final class MenuViewModelTests: XCTestCase {
             $0.target == .developerOption(name: "Reset Onboarding")
         })
     }
+
+    // MARK: - Held localised content
+
+    /// `MenuView` reads `sections` several times per body, so it is stored rather than rebuilt per
+    /// read. Republishing it would invalidate every row in the list, so a rebuild that changes
+    /// nothing must not.
+    func testRefreshingPublishesNothingWhenTheCopyHasNotChanged() {
+        defer { wipeDefaults() }
+        let viewModel = MenuViewModel(defaults: makeDefaults())
+
+        var published = 0
+        let cancellable = viewModel.$sections.sink { _ in published += 1 }
+        defer { cancellable.cancel() }
+
+        XCTAssertEqual(published, 1, "the current value arrives on subscription")
+        let before = viewModel.sections
+
+        viewModel.refreshLocalizedContent()
+
+        XCTAssertEqual(published, 1, "an unchanged rebuild must not invalidate the whole list")
+        XCTAssertEqual(viewModel.sections, before)
+    }
+
+    func testPinsSurviveARefreshOfTheLocalisedContent() {
+        defer { wipeDefaults() }
+        let viewModel = MenuViewModel(defaults: makeDefaults())
+        viewModel.togglePin(for: .fonts)
+
+        viewModel.refreshLocalizedContent()
+
+        XCTAssertEqual(viewModel.pinnedItems, [.fonts])
+    }
+
+    func testSearchStillWorksAfterTheIndexIsDropped() {
+        defer { wipeDefaults() }
+        let viewModel = MenuViewModel(defaults: makeDefaults())
+        viewModel.searchText = "feature flags"
+        let before = viewModel.searchResults.map(\.id)
+
+        // Dropping and rebuilding the index is how a language change reaches search.
+        viewModel.refreshLocalizedContent()
+
+        XCTAssertFalse(before.isEmpty)
+        XCTAssertEqual(viewModel.searchResults.map(\.id), before)
+    }
+
+    func testAnEmptyQueryMatchesNothing() {
+        defer { wipeDefaults() }
+        let viewModel = MenuViewModel(defaults: makeDefaults())
+
+        viewModel.searchText = "   "
+
+        XCTAssertTrue(viewModel.searchResults.isEmpty)
+    }
+
+    // MARK: - Row values
+
+    /// The fixed device and application facts are read once per menu, not once per row render.
+    /// Among them is a keychain query that *adds* an item when it finds none, and a file stat.
+    func testDeviceValuesAreReadOnce() {
+        defer { wipeDefaults() }
+        var reads = 0
+        let viewModel = MenuViewModel(
+            defaults: makeDefaults(),
+            deviceValues: {
+                reads += 1
+                return [.osVersion: "17.0", .hardware: "iPhone17,1"]
+            }
+        )
+
+        XCTAssertEqual(viewModel.valueDescription(for: .osVersion), "17.0")
+        XCTAssertEqual(viewModel.valueDescription(for: .hardware), "iPhone17,1")
+        XCTAssertEqual(viewModel.valueDescription(for: .osVersion), "17.0")
+
+        XCTAssertEqual(reads, 1, "the device facts must be snapshotted, not read per row")
+    }
+
+    func testDeviceValuesComeFromTheDeviceByDefault() {
+        defer { wipeDefaults() }
+        let viewModel = MenuViewModel(defaults: makeDefaults())
+
+        XCTAssertEqual(viewModel.valueDescription(for: .processId), String(getpid()))
+        XCTAssertEqual(viewModel.valueDescription(for: .osVersion), UIDevice.current.systemVersion)
+    }
+
+    func testRowsWithoutAPlainValueHaveNoDescription() {
+        defer { wipeDefaults() }
+        let viewModel = MenuViewModel(defaults: makeDefaults())
+
+        // Navigation, toggle, and the asynchronously loaded IP address.
+        XCTAssertNil(viewModel.valueDescription(for: .networkLogs))
+        XCTAssertNil(viewModel.valueDescription(for: .slowAnimations))
+        XCTAssertNil(viewModel.valueDescription(for: .ipAddress))
+    }
+
+    /// Push tokens are the exception to the snapshot: the host app sets them, possibly after the
+    /// menu is already on screen.
+    func testPushTokensAreReadLive() {
+        defer {
+            wipeDefaults()
+            Scyther.apnsToken = nil
+        }
+        let viewModel = MenuViewModel(defaults: makeDefaults())
+        XCTAssertEqual(viewModel.valueDescription(for: .apnsToken), "Not set")
+
+        Scyther.apnsToken = "a-token-set-while-the-menu-is-open"
+
+        XCTAssertEqual(viewModel.tokenValue(for: .apnsToken), "a-token-set-while-the-menu-is-open")
+        XCTAssertEqual(
+            viewModel.valueDescription(for: .apnsToken),
+            "a-token-set-while-the-menu-is-open"
+        )
+    }
 }
 #endif

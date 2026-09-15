@@ -88,8 +88,11 @@ func localizedChrome(
 ///
 /// Sits between ``localized(_:comment:override:)`` and ``PseudoLocalizationTransform`` so the
 /// platform guard and the fast path live in one place rather than at every call site. The fast
-/// path matters: this runs once per string in Scyther's interface, and with every mode off it
-/// costs four `UserDefaults` reads and an emptiness check before returning the input untouched.
+/// path matters: this runs once per string in Scyther's interface — about 1,500 times for one
+/// render of the main menu — so with every mode off it costs an uncontended lock and an emptiness
+/// check before returning the input untouched. The modes come from memory
+/// (``PseudoLocalizationModeCache``), never from `UserDefaults`: reading them from disk here was
+/// what froze the menu for seconds on every render in the Simulator.
 ///
 /// The key is recovered by reflection rather than passed in, because the call sites hand over a
 /// literal and there is no other way to see the `%lld`-shaped catalog key behind an interpolated
