@@ -34,8 +34,11 @@ import Foundation
 ///
 /// ### Layout
 /// - ``allSections(developerOptions:)``
+/// - ``builtInLayout``
+/// - ``homeSectionIDs``
+/// - ``title(forID:)``
 /// - ``MenuSectionID``
-struct MenuSection: Identifiable {
+struct MenuSection: Identifiable, Equatable {
     /// Stable, language independent identifier — see ``MenuSectionID``.
     ///
     /// Never derived from ``title``: the title is localised, so keying anything on it would
@@ -48,59 +51,104 @@ struct MenuSection: Identifiable {
     /// The rows in this section, in display order.
     let items: [MenuItem]
 
+    /// The built-in sections, in display order, as identifiers and rows with no copy attached.
+    ///
+    /// The single statement of which row lives in which section. ``allSections(developerOptions:)``
+    /// titles it for display, and ``homeSectionIDs`` indexes it so ``MenuItem/tint`` can find a
+    /// row's section without resolving a single string.
+    ///
+    /// "Development Tools" is absent because its rows come from the host app at runtime;
+    /// ``allSections(developerOptions:)`` inserts it after "Application" when there are any.
+    static let builtInLayout: [(id: String, items: [MenuItem])] = [
+        (MenuSectionID.device, [
+            .osVersion, .hardware, .releaseYear, .uuid
+        ]),
+        (MenuSectionID.application, [
+            .appIdPrefix, .displayName, .bundleId, .processId,
+            .version, .buildNumber, .buildDate, .releaseType
+        ]),
+        (MenuSectionID.networking, [
+            .ipAddress, .networkLogs, .networkConditioning, .networkRules, .networkBreakpoints,
+            .serverConfiguration, .environmentVariables
+        ]),
+        (MenuSectionID.data, [
+            .featureFlags, .userDefaults, .cookies, .fileBrowser, .databaseBrowser
+        ]),
+        (MenuSectionID.security, [
+            .keychainBrowser
+        ]),
+        (MenuSectionID.systemTools, [
+            .locationSpoofer, .consoleLogs, .deepLinkTester, .crashLogs
+        ]),
+        (MenuSectionID.notifications, [
+            .notificationLogger, .notificationTester, .apnsToken, .fcmToken
+        ]),
+        (MenuSectionID.uiux, [
+            .fonts, .interfaceComponents, .gridOverlay, .layoutGuides, .layoutRuler, .viewHierarchy,
+            .fpsCounter, .touchVisualiser, .accessibilityAudit, .appearance, .language, .pseudoLocalization,
+            .slowAnimations, .showViewFrames, .showViewSizes
+        ])
+    ]
+
+    /// Each built-in row's home section identifier, indexed once from ``builtInLayout``.
+    ///
+    /// What makes ``MenuItem/tint`` a dictionary lookup. It used to rebuild
+    /// ``allSections(developerOptions:)`` — nine localised titles — to find one row's section, and
+    /// every row asked for its tint on every render.
+    static let homeSectionIDs: [MenuItem: String] = Dictionary(
+        uniqueKeysWithValues: builtInLayout.flatMap { section in
+            section.items.map { item in (item, section.id) }
+        }
+    )
+
+    /// A section's header text, localised into the effective language.
+    ///
+    /// - Parameter id: A section identifier, as declared in ``MenuSectionID``.
+    /// - Returns: The localised title, or `id` itself for an identifier this version does not know.
+    static func title(forID id: String) -> String {
+        switch id {
+        case MenuSectionID.device: return localized("Device")
+        case MenuSectionID.application: return localized("Application")
+        case MenuSectionID.developmentTools: return localized("Development Tools")
+        case MenuSectionID.networking: return localized("Networking")
+        case MenuSectionID.data: return localized("Data")
+        case MenuSectionID.security: return localized("Security")
+        case MenuSectionID.systemTools: return localized("System Tools")
+        case MenuSectionID.notifications: return localized("Notifications")
+        case MenuSectionID.uiux: return localized("UI/UX")
+        case MenuSectionID.pinned: return localized("Pinned")
+        default: return id
+        }
+    }
+
     /// The full menu layout, in display order.
     ///
     /// "Device" is always first — ``MenuView`` renders the device header inside it and
     /// inserts the "Pinned" section immediately afterwards.
+    ///
+    /// Resolves every section title, so it is not free: callers that render should hold on to the
+    /// result, as ``MenuViewModel/sections`` does, rather than call this per row.
     ///
     /// - Parameter developerOptions: The host app's custom options, from
     ///   `Scyther.developerOptions`. When empty, the "Development Tools" section is omitted
     ///   entirely rather than rendered blank.
     /// - Returns: Every section that should be displayed.
     static func allSections(developerOptions: [DeveloperOption]) -> [MenuSection] {
-        var sections: [MenuSection] = [
-            MenuSection(id: MenuSectionID.device, title: localized("Device"), items: [
-                .osVersion, .hardware, .releaseYear, .uuid
-            ]),
-            MenuSection(id: MenuSectionID.application, title: localized("Application"), items: [
-                .appIdPrefix, .displayName, .bundleId, .processId,
-                .version, .buildNumber, .buildDate, .releaseType
-            ])
-        ]
-
-        if !developerOptions.isEmpty {
-            sections.append(
-                MenuSection(
-                    id: MenuSectionID.developmentTools,
-                    title: localized("Development Tools"),
-                    items: developerOptions.map { .developerOption(name: $0.name) }
-                )
-            )
+        var sections = builtInLayout.map { section in
+            MenuSection(id: section.id, title: title(forID: section.id), items: section.items)
         }
 
-        sections.append(contentsOf: [
-            MenuSection(id: MenuSectionID.networking, title: localized("Networking"), items: [
-                .ipAddress, .networkLogs, .networkConditioning, .networkRules, .networkBreakpoints,
-                .serverConfiguration, .environmentVariables
-            ]),
-            MenuSection(id: MenuSectionID.data, title: localized("Data"), items: [
-                .featureFlags, .userDefaults, .cookies, .fileBrowser, .databaseBrowser
-            ]),
-            MenuSection(id: MenuSectionID.security, title: localized("Security"), items: [
-                .keychainBrowser
-            ]),
-            MenuSection(id: MenuSectionID.systemTools, title: localized("System Tools"), items: [
-                .locationSpoofer, .consoleLogs, .deepLinkTester, .crashLogs
-            ]),
-            MenuSection(id: MenuSectionID.notifications, title: localized("Notifications"), items: [
-                .notificationLogger, .notificationTester, .apnsToken, .fcmToken
-            ]),
-            MenuSection(id: MenuSectionID.uiux, title: localized("UI/UX"), items: [
-                .fonts, .interfaceComponents, .gridOverlay, .layoutGuides, .layoutRuler, .viewHierarchy,
-                .fpsCounter, .touchVisualiser, .accessibilityAudit, .appearance, .language, .pseudoLocalization,
-                .slowAnimations, .showViewFrames, .showViewSizes
-            ])
-        ])
+        if !developerOptions.isEmpty,
+           let application = sections.firstIndex(where: { $0.id == MenuSectionID.application }) {
+            sections.insert(
+                MenuSection(
+                    id: MenuSectionID.developmentTools,
+                    title: title(forID: MenuSectionID.developmentTools),
+                    items: developerOptions.map { .developerOption(name: $0.name) }
+                ),
+                at: application + 1
+            )
+        }
 
         return sections
     }

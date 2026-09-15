@@ -46,13 +46,17 @@ extension MenuItem {
     ///
     /// A computed sibling of ``title`` and ``icon``, so a row's whole presentation
     /// reads off the item itself. Home sections of built-in rows are static layout
-    /// (``MenuSection/allSections(developerOptions:)``), and a developer option always
-    /// lives in the Development Tools section, so no live menu state is needed.
+    /// (``MenuSection/builtInLayout``), and a developer option always lives in the
+    /// Development Tools section, so no live menu state is needed.
+    ///
+    /// A dictionary lookup in ``MenuSection/homeSectionIDs``, and deliberately so: every row
+    /// asks for its tint on every render. This used to rebuild the localised section list to
+    /// find the row's home, which was most of the work a render of the menu did.
     var tint: Color {
         if case .developerOption = self {
             return MenuSection.tint(forID: MenuSectionID.developmentTools)
         }
-        let home = MenuSection.allSections(developerOptions: []).first { $0.items.contains(self) }
-        return home?.tint ?? .accentColor
+        guard let home = MenuSection.homeSectionIDs[self] else { return .accentColor }
+        return MenuSection.tint(forID: home)
     }
 }

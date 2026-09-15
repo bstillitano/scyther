@@ -424,33 +424,18 @@ public struct MenuView: View {
     ///
     /// Single source for ``rowContent(for:)`` and ``searchResultRow(for:)``, so a
     /// value can never differ between the menu and its search result.
+    ///
+    /// The values themselves come from ``MenuViewModel/valueDescription(for:)``, which reads the
+    /// fixed device and application facts once per menu rather than inside every row's body — one
+    /// of them is a keychain query that writes an item when it finds none.
     private func valueDescription(for item: MenuItem) -> String? {
-        switch item {
-        case .osVersion: return UIDevice.current.systemVersion
-        case .hardware: return UIDevice.current.modelName
-        case .releaseYear: return UIDevice.current.generation.withoutDecimals
-        case .uuid: return UIDevice.current.identifierForVendor?.uuidString
-        case .appIdPrefix: return Bundle.main.seedId
-        case .displayName: return String(UIApplication.shared.appName)
-        case .bundleId: return Bundle.main.bundleIdentifier
-        case .processId: return String(getpid())
-        case .version: return Bundle.main.versionNumber
-        case .buildNumber: return Bundle.main.buildNumber
-        case .buildDate: return Bundle.main.buildDate.formatted()
-        case .releaseType: return AppEnvironment.configuration().rawValue
-        case .apnsToken, .fcmToken: return tokenValue(for: item) ?? localized("Not set")
-        default: return nil
-        }
+        viewModel.valueDescription(for: item)
     }
 
     /// The push token behind ``MenuItem/apnsToken`` / ``MenuItem/fcmToken``, or `nil` when the
     /// host app hasn't set it yet.
     private func tokenValue(for item: MenuItem) -> String? {
-        switch item {
-        case .apnsToken: return Scyther.apnsToken
-        case .fcmToken: return Scyther.fcmToken
-        default: return nil
-        }
+        viewModel.tokenValue(for: item)
     }
 
     /// A push-token row. The row truncates the token, so long-press copies it in full.

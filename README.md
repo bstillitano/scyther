@@ -162,6 +162,20 @@ Key public types conform to `Sendable` for safe cross-actor usage:
 
 Scyther uses `nonisolated` properties for UserDefaults-backed settings to avoid actor hop overhead in hot paths. This ensures the debugging tools don't impact your app's UI performance.
 
+Two settings are read often enough to be worth more than that, and both are held in memory rather
+than read from `UserDefaults` per use:
+
+- **The pseudo-localisation switches.** Every string Scyther resolves asks whether a text mode is
+  on, which is about 1,500 questions for one render of the main menu. They are cached and
+  invalidated whenever anything in the process writes to `UserDefaults`, so the cache cannot
+  disagree with what is persisted — including after **Reset all Scyther settings**, which removes
+  the whole suite. In the Simulator each of those reads costs about 2 ms, because it goes to
+  `cfprefsd`, which checks the app's entitlements against the code signature on disk.
+- **The menu's own layout.** A row's section tint is a dictionary lookup, the section list and the
+  search index are resolved once and held, and the fixed device and application facts a value row
+  shows — including the App ID Prefix, a keychain query — are snapshotted once per menu rather than
+  read inside every row's body.
+
 ### Localisation
 
 Scyther's own interface is available in twelve languages besides English: French, German,

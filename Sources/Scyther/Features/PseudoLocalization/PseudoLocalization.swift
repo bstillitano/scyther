@@ -49,6 +49,13 @@ import UIKit
 /// session where the switch moves, in either direction, which is why the toggle raises a relaunch
 /// alert. See ``PseudoLocalizationLayout``.
 ///
+/// ## Performance
+///
+/// The switches are read on the hottest path in Scyther — once for every string it resolves — so
+/// they are served from memory by a ``PseudoLocalizationModeCache`` rather than read from
+/// `UserDefaults` each time. The cache is invalidated by this type's setters and by any other write
+/// to `UserDefaults` in the process, so it can never disagree with what is persisted.
+///
 /// ```swift
 /// PseudoLocalization.instance.accented = true
 /// PseudoLocalization.instance.lengthened = true
@@ -72,6 +79,7 @@ import UIKit
 /// ### Resolution
 /// - ``activeModes``
 /// - ``storedModes``
+/// - ``readModes(from:)``
 /// - ``resolvedModes(stored:isAppStore:)``
 /// - ``canAffectHostApp(isTestCase:isAppStore:)``
 ///
@@ -100,6 +108,12 @@ internal final class PseudoLocalization: @unchecked Sendable {
     /// UserDefaults key for storing whether transformed strings keep their delimiters.
     nonisolated static let ShowsBoundariesDefaultsKey: String = "Scyther_pseudo_localization_show_boundaries"
 
+    /// Whether this process is an App Store build, read once.
+    ///
+    /// ``AppEnvironment/isAppStore`` inspects the app's receipt URL every time it is asked, and
+    /// ``activeModes`` is asked once per string. The answer cannot change while the process runs.
+    nonisolated private static let isAppStoreBuild: Bool = AppEnvironment.isAppStore
+
     /// Where the switches are persisted.
     ///
     /// Injected rather than read from `UserDefaults.scyther` at each call site so a test can hand
@@ -112,11 +126,37 @@ internal final class PseudoLocalization: @unchecked Sendable {
     /// on a screen with a hundred of them.
     nonisolated(unsafe) private let defaults: UserDefaults
 
+    /// The switches as last read from ``defaults``, so the hot path never reads them from disk.
+    nonisolated private let modeCache: PseudoLocalizationModeCache
+
+    /// Invalidates ``modeCache`` whenever anything in the process writes to `UserDefaults`.
+    ///
+    /// Observes every defaults object rather than only ``defaults``: "Reset all Scyther settings"
+    /// removes the suite through `UserDefaults.standard`, so the notification it posts names a
+    /// different object. An unrelated write costs one reload on the next string, not one per string.
+    ///
+    /// `nonisolated(unsafe)` because the token is not `Sendable`. It is written once, in `init`, and
+    /// read again only in `deinit`.
+    nonisolated(unsafe) private let defaultsObservation: NSObjectProtocol
+
     /// Creates a manager backed by a specific defaults store.
     ///
     /// - Parameter defaults: Where the switches are persisted. Defaults to `UserDefaults.scyther`.
     nonisolated init(defaults: UserDefaults = .scyther) {
         self.defaults = defaults
+        let cache = PseudoLocalizationModeCache { Self.readModes(from: defaults) }
+        self.modeCache = cache
+        self.defaultsObservation = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: nil
+        ) { _ in
+            cache.invalidate()
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(defaultsObservation)
     }
 
     /// The shared singleton instance of `PseudoLocalization`.
@@ -133,53 +173,41 @@ internal final class PseudoLocalization: @unchecked Sendable {
     ///
     /// The value is persisted to `UserDefaults.scyther` and restored on app launch.
     internal nonisolated var accented: Bool {
-        get { defaults.bool(forKey: Self.AccentedDefaultsKey) }
-        set {
-            defaults.setValue(newValue, forKey: Self.AccentedDefaultsKey)
-            synchronise()
-        }
+        get { storedModes.contains(.accented) }
+        set { persist(newValue, forKey: Self.AccentedDefaultsKey) }
     }
 
     /// Whether strings are padded to roughly 135% of their length.
     ///
     /// The value is persisted to `UserDefaults.scyther` and restored on app launch.
     internal nonisolated var lengthened: Bool {
-        get { defaults.bool(forKey: Self.LengthenedDefaultsKey) }
-        set {
-            defaults.setValue(newValue, forKey: Self.LengthenedDefaultsKey)
-            synchronise()
-        }
+        get { storedModes.contains(.lengthened) }
+        set { persist(newValue, forKey: Self.LengthenedDefaultsKey) }
     }
 
     /// Whether the interface is forced into right-to-left layout.
     ///
     /// The value is persisted to `UserDefaults.scyther` and restored on app launch.
     internal nonisolated var rightToLeft: Bool {
-        get { defaults.bool(forKey: Self.RightToLeftDefaultsKey) }
-        set {
-            defaults.setValue(newValue, forKey: Self.RightToLeftDefaultsKey)
-            synchronise()
-        }
+        get { storedModes.contains(.rightToLeft) }
+        set { persist(newValue, forKey: Self.RightToLeftDefaultsKey) }
     }
 
     /// Whether catalog keys are rendered in place of their translations.
     ///
     /// The value is persisted to `UserDefaults.scyther` and restored on app launch.
     internal nonisolated var showsKeys: Bool {
-        get { defaults.bool(forKey: Self.ShowsKeysDefaultsKey) }
-        set {
-            defaults.setValue(newValue, forKey: Self.ShowsKeysDefaultsKey)
-            synchronise()
-        }
+        get { storedModes.contains(.showsKeys) }
+        set { persist(newValue, forKey: Self.ShowsKeysDefaultsKey) }
     }
 
     /// Whether a lengthened string keeps the `[` and `]` marking where it starts and ends.
     ///
-    /// The one switch here that reads as `true` with nothing stored, which is why it cannot use
-    /// `UserDefaults.bool(forKey:)` — that method answers absence with `false`, the opposite of
-    /// what is wanted for a setting that ships on. It is the same read
-    /// ``AccessibilityAudit/isEnabled(_:)`` does, for the same reason: an existing install where
-    /// nothing has been written must keep behaving exactly as it did before the switch existed.
+    /// The one switch here that reads as `true` with nothing stored, which is why
+    /// ``readModes(from:)`` cannot use `UserDefaults.bool(forKey:)` for it — that method answers
+    /// absence with `false`, the opposite of what is wanted for a setting that ships on. It is the
+    /// same read ``AccessibilityAudit/isEnabled(_:)`` does, for the same reason: an existing install
+    /// where nothing has been written must keep behaving exactly as it did before the switch existed.
     ///
     /// On rather than off because the brackets are the diagnostic. The padding dots already say a
     /// string grew; only the closing bracket says whether the end of it was cut off, which is the
@@ -188,14 +216,8 @@ internal final class PseudoLocalization: @unchecked Sendable {
     ///
     /// The value is persisted to `UserDefaults.scyther` and restored on app launch.
     internal nonisolated var showsBoundaries: Bool {
-        get {
-            guard let stored = defaults.object(forKey: Self.ShowsBoundariesDefaultsKey) as? Bool else { return true }
-            return stored
-        }
-        set {
-            defaults.setValue(newValue, forKey: Self.ShowsBoundariesDefaultsKey)
-            synchronise()
-        }
+        get { storedModes.contains(.showsBoundaries) }
+        set { persist(newValue, forKey: Self.ShowsBoundariesDefaultsKey) }
     }
 
     /// Switches every mode off and tears down the effects they installed.
@@ -214,6 +236,22 @@ internal final class PseudoLocalization: @unchecked Sendable {
         defaults.setValue(false, forKey: Self.RightToLeftDefaultsKey)
         defaults.setValue(false, forKey: Self.ShowsKeysDefaultsKey)
         defaults.setValue(true, forKey: Self.ShowsBoundariesDefaultsKey)
+        modeCache.invalidate()
+        synchronise()
+    }
+
+    /// Writes one switch, then brings the cache and the effects into line with it.
+    ///
+    /// The cache is invalidated explicitly even though the write also posts
+    /// `UserDefaults.didChangeNotification`, so this type's own writes never depend on how and when
+    /// Foundation delivers that notification.
+    ///
+    /// - Parameters:
+    ///   - value: The new value.
+    ///   - key: The defaults key the switch is stored under.
+    private nonisolated func persist(_ value: Bool, forKey key: String) {
+        defaults.setValue(value, forKey: key)
+        modeCache.invalidate()
         synchronise()
     }
 
@@ -221,28 +259,43 @@ internal final class PseudoLocalization: @unchecked Sendable {
 
     /// The modes persisted in ``defaults``, before any environment gating.
     ///
+    /// Served from memory; ``defaults`` is read only on the first call and on the first after
+    /// anything writes to `UserDefaults`. See ``PseudoLocalizationModeCache``.
+    ///
     /// Separated from ``activeModes`` so the App Store guard can be tested as a pure function:
     /// `AppEnvironment.isAppStore` is unconditionally `false` in the test host, so a test going in
     /// through ``activeModes`` could never reach the branch that refuses.
     internal nonisolated var storedModes: PseudoLocalizationMode {
+        modeCache.modes()
+    }
+
+    /// Reads every switch from a defaults store.
+    ///
+    /// The only place the switches are read out of `UserDefaults`, and only ever called when the
+    /// cache behind ``storedModes`` is empty.
+    ///
+    /// - Parameter defaults: The store the switches are persisted in.
+    /// - Returns: The persisted modes, with ``PseudoLocalizationMode/showsBoundaries`` on when
+    ///   nothing has been stored for it.
+    internal nonisolated static func readModes(from defaults: UserDefaults) -> PseudoLocalizationMode {
         var modes: PseudoLocalizationMode = []
-        if accented { modes.insert(.accented) }
-        if lengthened { modes.insert(.lengthened) }
-        if rightToLeft { modes.insert(.rightToLeft) }
-        if showsKeys { modes.insert(.showsKeys) }
-        if showsBoundaries { modes.insert(.showsBoundaries) }
+        if defaults.bool(forKey: AccentedDefaultsKey) { modes.insert(.accented) }
+        if defaults.bool(forKey: LengthenedDefaultsKey) { modes.insert(.lengthened) }
+        if defaults.bool(forKey: RightToLeftDefaultsKey) { modes.insert(.rightToLeft) }
+        if defaults.bool(forKey: ShowsKeysDefaultsKey) { modes.insert(.showsKeys) }
+        if defaults.object(forKey: ShowsBoundariesDefaultsKey) as? Bool ?? true { modes.insert(.showsBoundaries) }
         return modes
     }
 
     /// The modes actually in force, which is nothing at all on an App Store build.
     ///
-    /// Read on the hot path — once per string Scyther resolves — so it deliberately hits
-    /// `UserDefaults` directly rather than maintaining a cached copy behind a lock. The suite is
-    /// an in-memory dictionary after its first load, and the same trade is already made far more
-    /// aggressively elsewhere in the toolkit: `UIView.refreshDebugBorders()` reads a `Bool` out of
-    /// it for every view in the app on every layout pass.
+    /// Read on the hot path — once per string Scyther resolves — so it touches neither
+    /// `UserDefaults` nor the app's receipt: the modes come from ``storedModes``'s in-memory cache,
+    /// and the build type is read once per process. Both used to be read on every call, and in the
+    /// iOS Simulator, where each defaults read costs about 2 ms, that alone froze the menu for
+    /// seconds on every render.
     internal nonisolated var activeModes: PseudoLocalizationMode {
-        Self.resolvedModes(stored: storedModes, isAppStore: AppEnvironment.isAppStore)
+        Self.resolvedModes(stored: storedModes, isAppStore: Self.isAppStoreBuild)
     }
 
     /// Whether persisted modes should be honoured, given the build they are running in.

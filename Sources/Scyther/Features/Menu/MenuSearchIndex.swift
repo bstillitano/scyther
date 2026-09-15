@@ -67,10 +67,27 @@ enum MenuSearchIndex {
         matching query: String,
         developerOptions: [DeveloperOption]
     ) -> [MenuSearchEntry] {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        return entries(matching: query, in: entries(developerOptions: developerOptions))
+    }
+
+    /// The entries of an already-built index that match a search query.
+    ///
+    /// The same matching as ``entries(matching:developerOptions:)``, over an index the caller
+    /// built once. Building the index resolves the localised title of every row and every
+    /// sub-page entry, so ``MenuViewModel`` keeps one and filters it on each keystroke instead
+    /// of rebuilding it.
+    ///
+    /// - Parameters:
+    ///   - query: The user's search text. Leading and trailing whitespace is ignored; an
+    ///     effectively empty query matches nothing.
+    ///   - index: Entries from ``entries(developerOptions:)``.
+    /// - Returns: Matching entries, in index order.
+    static func entries(matching query: String, in index: [MenuSearchEntry]) -> [MenuSearchEntry] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
-        return entries(developerOptions: developerOptions).filter { entry in
+        return index.filter { entry in
             entry.title.localizedStandardContains(trimmed)
                 || entry.breadcrumb.contains { $0.localizedStandardContains(trimmed) }
                 || entry.keywords.contains {

@@ -134,6 +134,13 @@ worse than no tool.
   `UserDefaults.scyther`. ``PseudoLocalization/showsBoundaries`` is the one switch that reads as on
   with nothing stored, and ``PseudoLocalization/reset()`` restores it to on rather than clearing
   it, because that is its shipped state.
+- The switches are read once and held in memory rather than read from `UserDefaults` per string.
+  `localized(_:comment:)` asks whether a text mode is on for every piece of copy Scyther resolves,
+  which is about 1,500 questions for one render of the main menu, and in the Simulator each defaults
+  read costs about 2 ms. ``PseudoLocalizationModeCache`` invalidates on this feature's own setters
+  and on any other `UserDefaults` write in the process, so what is cached can never disagree with
+  what is persisted — including after the UserDefaults browser's **Reset all Scyther settings**,
+  which removes the whole suite rather than writing a key.
 - Show Boundaries changes how another mode renders and nothing else. It is deliberately absent from
   ``PseudoLocalizationMode/textAffecting``, so it can never install the hook into the host app's
   string loading on its own.
