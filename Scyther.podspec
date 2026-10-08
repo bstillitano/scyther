@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'Scyther'
-  s.version          = '4.8.1'
+  s.version          = '4.9.0'
   s.summary          = 'Just like scyther, this menu helps you cut through bugs in your iOS app.'
 
   s.homepage         = 'https://github.com/bstillitano/Scyther'
