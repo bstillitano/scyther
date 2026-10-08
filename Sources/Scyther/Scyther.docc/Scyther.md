@@ -43,7 +43,7 @@ struct MyApp: App {
 }
 ```
 
-Once started, **shake your device** (or press `Cmd + Ctrl + Z` in the simulator) to open the debug menu.
+Once started, **shake your device** (or press `Control + Command + Z` on a hardware keyboard or in the simulator) to open the debug menu.
 
 ### Swift 6 Ready
 

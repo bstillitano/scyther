@@ -79,6 +79,14 @@ Once Scyther is started, you have several ways to open the debug menu:
 
 Simply shake your device. In the iOS Simulator, press `Cmd + Ctrl + Z`.
 
+### Keyboard Shortcut
+
+With a hardware keyboard attached — an iPad in a keyboard case, say — press **Control–Command–Z**
+(⌃⌘Z). It is the same chord as the Simulator's shake, works whenever ``Scyther/invocationGesture``
+is ``ScytherGesture/shake``, and is listed as "Open Scyther" in the overlay shown while ⌘ is held.
+It is only added to each window's key commands, so the app's own shortcuts keep working, and an
+app command bound to the same chord takes precedence.
+
 ### Programmatic Invocation
 
 ```swift
