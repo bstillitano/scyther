@@ -453,7 +453,7 @@ count, so a later `Scyther.start(allowProductionBuilds: true)` still starts Scyt
 
 ### Opening the Menu
 
-Once started, **shake your device** (or press `Cmd + Ctrl + Z` in the simulator) to open the Scyther debug menu.
+Once started, **shake your device** (or press `Control + Command + Z` on a hardware keyboard or in the simulator) to open the Scyther debug menu.
 
 You can also open it programmatically:
 
@@ -2153,6 +2153,19 @@ By default, shaking the device opens the Scyther menu.
 Scyther.invocationGesture = .shake
 ```
 
+### Keyboard Shortcut
+
+While `invocationGesture` is `.shake`, **Control + Command + Z** (⌃⌘Z) on a hardware keyboard also
+opens the menu — no setup needed, and handy for an iPad in a keyboard case. It's the same chord the
+Simulator uses for *Device › Shake*, so one shortcut works everywhere. It shows up as "Open Scyther"
+in the shortcuts overlay you get by holding ⌘.
+
+The shortcut is offered by every `UIWindow`, near the end of the responder chain, and is only ever
+*added* to the window's commands. Your app's own shortcuts are untouched, and if your app binds ⌃⌘Z
+itself, your command wins because it sits closer to the first responder. Two things hide Scyther's
+shortcut: setting `invocationGesture = .custom`, or a `UIWindow` subclass that overrides
+`keyCommands` without calling `super`.
+
 ### Custom Gesture
 
 For custom trigger mechanisms:
@@ -2227,7 +2240,7 @@ in one, use **UI/UX → Language**. See [Localisation](#localisation).
 | `isStarted` | `Bool` | Whether Scyther has been started |
 | `isPresented` | `Bool` | Whether the menu is currently showing |
 | `delegate` | `ScytherDelegate?` | Delegate for receiving events |
-| `invocationGesture` | `ScytherGesture` | Gesture to open menu (`.shake` or `.custom`) |
+| `invocationGesture` | `ScytherGesture` | Gesture to open menu (`.shake`, which also enables the ⌃⌘Z keyboard shortcut, or `.custom`) |
 | `developerOptions` | `[DeveloperOption]` | Custom menu options |
 | `environmentVariables` | `[String: String]` | Custom environment variables |
 | `apnsToken` | `String?` | APNS device token |

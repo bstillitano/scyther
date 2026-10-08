@@ -39,6 +39,8 @@ import Foundation
     /// ## Implementation Details
     /// - Works on physical devices (not available in simulator)
     /// - Detects motion events through `UIResponder.motionEnded(_:with:)`
+    /// - Also enables the Control–Command–Z (⌃⌘Z) hardware keyboard shortcut, so an iPad in a
+    ///   keyboard case does not have to be shaken
     /// - Requires no additional configuration
     case shake
 

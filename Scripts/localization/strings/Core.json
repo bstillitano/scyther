@@ -1,4 +1,9 @@
 {
+  "Open Scyther": {
+    "comment": "Hardware keyboard shortcut title for opening the Scyther menu",
+    "fr": "Ouvrir Scyther", "de": "Scyther öffnen", "es": "Abrir Scyther", "it": "Apri Scyther", "pt-BR": "Abrir Scyther", "nl": "Scyther openen",
+    "ja": "Scytherを開く", "zh-Hans": "打开 Scyther", "zh-Hant": "開啟 Scyther", "ko": "Scyther 열기", "ru": "Открыть Scyther", "ar": "فتح Scyther"
+  },
   "Language": {
     "comment": "Menu row and page title for the app language override",
     "fr": "Langue", "de": "Sprache", "es": "Idioma", "it": "Lingua", "pt-BR": "Idioma", "nl": "Taal",
