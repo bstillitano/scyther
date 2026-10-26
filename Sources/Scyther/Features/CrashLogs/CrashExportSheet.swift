@@ -16,6 +16,11 @@ import SwiftUI
 /// Export button. Export shows the sensitivity alert; confirming it opens the system share sheet.
 /// It is laid out as ``NetworkLogExportSheet`` is, so the two exports read the same. The archive
 /// is deleted when the sheet is dismissed.
+///
+/// - Note: The share sheet is ``ActivityShareSheet``, not `ShareLink`, for the same reason as in
+///   the network log export: it has to open only after the sensitivity alert is confirmed, and a
+///   `ShareLink` cannot be opened programmatically. Putting the warning in the list instead would
+///   swap the confirmation alert for text a developer can scroll past.
 struct CrashExportSheet: View {
     @Environment(\.dismiss) private var dismiss
 

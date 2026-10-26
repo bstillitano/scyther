@@ -274,7 +274,7 @@ private func parseIPS(_ data: Data) throws -> (header: [String: Any], report: [S
         var (entry, details) = trap
         details.sessionMatch = SessionJournal.Match.timeWindow.rawValue
 
-        #expect(CrashReportFormatter.report(entry: entry, details: details).contains("matched by time window (best guess)"))
+        #expect(CrashReportFormatter.report(entry: entry, details: details).contains("the only launch of this build active in the reporting window"))
     }
 
     /// The `atos` command names the image's own binary and load address, and lists each app frame
@@ -379,12 +379,76 @@ private func parseIPS(_ data: Data) throws -> (header: [String: Any], report: [S
         for index in 2..<(SessionJournal.maxSessions + 4) {
             journal.start(pinned: [pinned], now: base.addingTimeInterval(TimeInterval(index)))
         }
+        journal.flush()
 
         let ids = Set(journal.sessions().map(\.id))
 
-        #expect(ids.count == SessionJournal.maxSessions + 1)
+        /// The running session, the newest ten others, and the pinned one.
+        #expect(ids.count == SessionJournal.maxSessions + 2)
         #expect(ids.contains(pinned))
         #expect(!ids.contains(oldest))
+    }
+
+    /// Sessions stored crashes refer to are kept, but only the newest of them, so disk use is
+    /// bounded however many crashes are stored.
+    @Test func keepsOnlyTheNewestPinnedSessions() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let journal = SessionJournal(root: root)
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        let pinned = (0..<(SessionJournal.maxPinnedSessions + 3)).map {
+            journal.start(pinned: [], now: base.addingTimeInterval(TimeInterval($0)))
+        }
+        journal.start(pinned: Set(pinned), now: base.addingTimeInterval(1_000))
+        journal.flush()
+
+        let ids = Set(journal.sessions().map(\.id))
+
+        #expect(ids.isSuperset(of: pinned.suffix(SessionJournal.maxPinnedSessions)))
+        #expect(ids.isDisjoint(with: pinned.prefix(3)))
+    }
+
+    /// A directory with no readable `session.json` is never listed, so it would never be pruned
+    /// either, unless pruning looks at directories rather than sessions.
+    @Test func removesDirectoriesWithoutASession() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let orphan = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: orphan, withIntermediateDirectories: true)
+        try Data("lost".utf8).write(to: orphan.appendingPathComponent("console.log"))
+        let journal = SessionJournal(root: root)
+
+        journal.start(pinned: [])
+        journal.flush()
+
+        #expect(!FileManager.default.fileExists(atPath: orphan.path))
+    }
+
+    @Test func clearingRemovesEverySessionsLogs() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let journal = SessionJournal(root: root)
+        let earlier = journal.start(pinned: [])
+        journal.recordConsole(["earlier"], source: "stdout")
+        let request = HTTPRequest()
+        request.requestURL = "https://clear.invalid/"
+        request.requestDate = Date()
+        journal.recordRequest(request)
+        journal.flush()
+        let current = journal.start(pinned: [earlier])
+        journal.recordConsole(["current"], source: "stdout")
+        journal.recordRequest(request)
+
+        journal.clearNetworkLogs()
+        journal.clearConsoleLogs()
+
+        #expect(journal.networkLog(for: earlier) == nil)
+        #expect(journal.networkLog(for: current) == nil)
+        #expect(journal.consoleLog(for: earlier) == nil)
+        #expect(journal.consoleLog(for: current) == nil)
+
+        journal.recordConsole(["after"], source: "stdout")
+        #expect(journal.consoleLog(for: current)?.contains("after") == true, "recording carries on after a clear")
     }
 
     @Test func dropsTheOldestHalfOfAFullFile() throws {
@@ -400,6 +464,20 @@ private func parseIPS(_ data: Data) throws -> (header: [String: Any], report: [S
         #expect(kept.hasPrefix("line 5"))
         #expect(kept.hasSuffix("line 99\n"))
         #expect(!kept.contains("line 0\n"))
+    }
+
+    /// The newest line survives even when it alone is more than half the file — one large
+    /// response must not empty the network log.
+    @Test func keepsTheNewestLineHoweverLong() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("log")
+        let newest = String(repeating: "x", count: 10_000)
+        try Data("old one\nold two\n\(newest)\n".utf8).write(to: url)
+
+        SessionJournal.dropOldestHalf(of: url)
+
+        #expect(try String(contentsOf: url, encoding: .utf8) == "\(newest)\n")
     }
 
     private func session(_ pid: Int, started: TimeInterval, active: TimeInterval, build: String = "42") -> SessionJournal.Session {
@@ -425,7 +503,7 @@ private func parseIPS(_ data: Data) throws -> (header: [String: Any], report: [S
     /// Without a process identifier, the newest earlier session of the same build active in the
     /// window — never the running one.
     @Test func matchesACrashByTimeWindow() throws {
-        let other = session(1, started: 100, active: 150)
+        let other = session(1, started: 0, active: 30)
         let crashed = session(2, started: 200, active: 260)
         let otherBuild = session(3, started: 300, active: 350, build: "41")
         let running = session(4, started: 400, active: 450)
@@ -437,6 +515,28 @@ private func parseIPS(_ data: Data) throws -> (header: [String: Any], report: [S
 
         #expect(match.session == crashed)
         #expect(match.match == .timeWindow)
+    }
+
+    /// Two launches of the build in the window: either could be the one that crashed, and
+    /// attaching the wrong one's logs is worse than attaching none.
+    @Test func matchesNothingWhenTheWindowHoldsTwoSessions() {
+        let first = session(1, started: 100, active: 150)
+        let second = session(2, started: 200, active: 260)
+
+        #expect(SessionJournal.session(crashedBetween: Date(timeIntervalSince1970: 120),
+                                       and: Date(timeIntervalSince1970: 500),
+                                       processID: nil, buildNumber: "42",
+                                       in: [second, first], excluding: nil) == nil)
+    }
+
+    /// Process identifiers are reused, so one only counts for a session active in the window.
+    @Test func ignoresAReusedProcessIdentifierOutsideTheWindow() {
+        let stale = session(812, started: 0, active: 30)
+
+        #expect(SessionJournal.session(crashedBetween: Date(timeIntervalSince1970: 1_000),
+                                       and: Date(timeIntervalSince1970: 2_000),
+                                       processID: 812, buildNumber: "42",
+                                       in: [stale], excluding: nil) == nil)
     }
 
     @Test func matchesNothingOutsideTheWindow() {
@@ -477,6 +577,58 @@ private func parseIPS(_ data: Data) throws -> (header: [String: Any], report: [S
         #expect(artifact.diagnosticJSON == trap.diagnosticJSON)
         #expect(artifact.details.sessionMatch == "processIdentifier")
         #expect(artifact.details.threads.count == 2)
+    }
+}
+
+/// A diagnostic that duplicates a handler crash adds its threads and raw JSON to that crash.
+@Suite struct CrashDiagnosticClaimTests {
+
+    @Test func foldsAClaimedDiagnosticIntoTheHandlerCrash() throws {
+        let handler = CrashDiagnosticFixtures.handlerEntry(
+            name: "NSInvalidArgumentException",
+            at: CrashDiagnosticFixtures.windowBegin.addingTimeInterval(600)
+        )
+        var handlerDetails = CrashDetails()
+        handlerDetails.exceptionBacktrace = [CrashDetails.Frame(imageIndex: 0, offset: 10, symbol: "objc_exception_throw", symbolOffset: 72)]
+        handlerDetails.images = [CrashDetails.BinaryImage(name: "libobjc.A.dylib", uuid: UUID(), loadAddress: 0x1000, path: nil, architecture: "arm64")]
+        handlerDetails.threads = [CrashDetails.Thread(crashed: true, frames: [])]
+        let crashes = InMemoryCrashLogRepository([handler])
+        crashes.record([], artifacts: [CrashArtifacts(id: handler.id, details: handlerDetails, diagnosticJSON: nil)])
+        let ingestor = CrashDiagnosticIngestor(crashes: crashes, fingerprints: InMemoryFingerprintStore(), symbolicator: NoSymbolicator())
+        var diagnostic = CrashDiagnosticFixtures.record(CrashDiagnosticFixtures.swiftTrap)
+        diagnostic.exceptionName = "NSInvalidArgumentException"
+
+        let entries = ingestor.ingest([diagnostic])
+
+        #expect(entries.isEmpty, "the duplicate is not stored as a crash of its own")
+        let merged = try #require(crashes.details(for: handler.id))
+        #expect(merged.exceptionBacktrace == handlerDetails.exceptionBacktrace)
+        #expect(merged.threads.count == 2, "MetricKit's threads replace the handler's one")
+        #expect(merged.exceptionCodes == [1])
+        #expect(crashes.artifacts.last?.diagnosticJSON == diagnostic.diagnosticJSON)
+        let app = try #require(merged.images.firstIndex { $0.name == "ExampleApp" })
+        #expect(merged.crashedThread?.frames.first?.imageIndex == app, "frames point into the merged image list")
+    }
+
+    @Test func mergingReusesImagesWithTheSameUUID() {
+        let uuid = UUID()
+        var handler = CrashDetails()
+        handler.images = [CrashDetails.BinaryImage(name: "Shared", uuid: uuid, loadAddress: 0x1000, path: "/a", architecture: "arm64")]
+        var metricKit = CrashDetails()
+        metricKit.images = [
+            CrashDetails.BinaryImage(name: "Other", uuid: UUID(), loadAddress: 0x2000, path: nil, architecture: "arm64"),
+            CrashDetails.BinaryImage(name: "Shared", uuid: uuid, loadAddress: 0x1000, path: nil, architecture: "arm64"),
+        ]
+        metricKit.threads = [CrashDetails.Thread(crashed: true, frames: [
+            CrashDetails.Frame(imageIndex: 1, offset: 4),
+            CrashDetails.Frame(imageIndex: 0, offset: 8),
+        ])]
+
+        let merged = handler.merging(metricKit: metricKit)
+
+        #expect(merged.images.map(\.name) == ["Shared", "Other"])
+        #expect(merged.images[0].path == "/a")
+        #expect(merged.threads[0].frames.map(\.imageIndex) == [0, 1])
     }
 }
 
@@ -602,6 +754,33 @@ private func parseIPS(_ data: Data) throws -> (header: [String: Any], report: [S
         #expect(rich.includesDiagnostics)
     }
 
+    /// Toggling twice while a slow build is running must leave the archive of the final setting,
+    /// never the earlier one, and remove the superseded archive.
+    @Test func theNewestSettingWinsAQuickDoubleToggle() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let viewModel = CrashExportViewModel(crashes: [entry(source: .metricKit)], minimumRebuildDuration: .zero) { _, redact in
+            /// The unredacted build is the slow one, so without ordering it would land last.
+            if !redact { Foundation.Thread.sleep(forTimeInterval: 0.3) }
+            let url = directory.appendingPathComponent("\(redact ? "redacted" : "raw")-\(UUID().uuidString).zip")
+            try Data().write(to: url)
+            return url
+        }
+        await viewModel.onFirstAppear()
+
+        let off = viewModel.setRedaction(false)
+        let on = viewModel.setRedaction(true)
+        await off?.value
+        await on?.value
+
+        let url = try #require(viewModel.archiveURL)
+        #expect(viewModel.redactSensitiveValues)
+        #expect(url.lastPathComponent.hasPrefix("redacted-"))
+        #expect(!viewModel.isRebuilding)
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        #expect(leftovers == [url.lastPathComponent], "superseded archives are deleted")
+    }
+
     @Test func buildsAndRebuildsWithTheRedactionSetting() async throws {
         let calls = RedactionCalls()
         let viewModel = CrashExportViewModel(crashes: [entry(source: .metricKit)], minimumRebuildDuration: .zero) { _, redact in
@@ -684,6 +863,35 @@ private final class RedactionCalls: @unchecked Sendable {
 
         let report = try parseIPS(data).report
         #expect(((report["threads"] as? [[String: Any]])?.first?["frames"] as? [Any])?.isEmpty == false)
+    }
+}
+#endif
+
+// MARK: - Details view model
+
+#if !os(macOS)
+@Suite @MainActor struct CrashDetailsViewModelLoadingTests {
+
+    /// The details and full report are read on first appearance, not in the initializer, and
+    /// replace the entry's own report once they are.
+    @Test func loadsTheDetailsAndFullReportOnAppear() async {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let artifacts = CrashArtifactStore(root: root.appendingPathComponent("artifacts"))
+        let journal = SessionJournal(root: root.appendingPathComponent("sessions"))
+        let record = CrashDiagnosticFixtures.record(CrashDiagnosticFixtures.swiftTrap)
+        let entry = CrashDiagnosticMapper.entry(for: record, symbolicator: NoSymbolicator())
+        artifacts.writeDetails(CrashDiagnosticMapper.details(for: record, symbolicator: NoSymbolicator()), for: entry.id)
+
+        let viewModel = CrashDetailsViewModel(crash: entry, artifacts: artifacts, journal: journal)
+        #expect(viewModel.details == nil)
+        #expect(viewModel.fullReport == entry.fullReport)
+
+        await viewModel.onFirstAppear()
+
+        #expect(viewModel.threadCount == 2)
+        #expect(viewModel.exceptionCodes == "0x0000000000000001")
+        #expect(viewModel.fullReport.contains("Thread 1 Crashed:"))
     }
 }
 #endif

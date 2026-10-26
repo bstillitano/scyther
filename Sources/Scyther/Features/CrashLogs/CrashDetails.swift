@@ -109,3 +109,44 @@ public struct CrashDetails: Codable, Equatable, Sendable {
     }
 }
 #endif
+
+#if !os(macOS)
+extension CrashDetails {
+    /// These details — an exception handler's — with what MetricKit reported for the same crash.
+    ///
+    /// The handler sees the exception's backtrace, symbolicated in the dying process, but only
+    /// the one thread it runs on. MetricKit sees every thread. The result keeps the handler's
+    /// backtrace and adopts MetricKit's threads, re-pointing their frames at a single list of
+    /// images, matched by UUID. Anything the handler could not know — the exception codes, the
+    /// memory region — comes from MetricKit.
+    ///
+    /// - Parameter metricKit: MetricKit's details for the same crash.
+    /// - Returns: The merged details.
+    func merging(metricKit: CrashDetails) -> CrashDetails {
+        var merged = self
+        var indices: [Int: Int] = [:]
+        for (index, image) in metricKit.images.enumerated() {
+            if let uuid = image.uuid, let existing = merged.images.firstIndex(where: { $0.uuid == uuid }) {
+                indices[index] = existing
+            } else {
+                merged.images.append(image)
+                indices[index] = merged.images.count - 1
+            }
+        }
+        if !metricKit.threads.isEmpty {
+            merged.threads = metricKit.threads.map { thread in
+                CrashDetails.Thread(crashed: thread.crashed, frames: thread.frames.map { frame in
+                    var frame = frame
+                    frame.imageIndex = frame.imageIndex.flatMap { indices[$0] }
+                    return frame
+                })
+            }
+        }
+        if merged.exceptionCodes.isEmpty { merged.exceptionCodes = metricKit.exceptionCodes }
+        merged.virtualMemoryRegionInfo = merged.virtualMemoryRegionInfo ?? metricKit.virtualMemoryRegionInfo
+        merged.processID = merged.processID ?? metricKit.processID
+        merged.bundleIdentifier = merged.bundleIdentifier ?? metricKit.bundleIdentifier
+        return merged
+    }
+}
+#endif

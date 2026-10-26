@@ -229,6 +229,9 @@ public final class ConsoleLogger: @unchecked Sendable {
         logsQueue.async(flags: .barrier) {
             self.logs.removeAll()
         }
+        // The session journal's copy goes too, so a crash export never carries output the
+        // developer cleared.
+        SessionJournal.shared.clearConsoleLogs()
         NotificationCenter.default.post(name: .ConsoleLoggerDidLog, object: nil)
     }
 

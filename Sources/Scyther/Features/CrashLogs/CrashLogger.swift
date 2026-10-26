@@ -210,7 +210,7 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     ///   - entries: The entries to add.
     ///   - artifacts: Their files, written in the same step.
     func record(_ entries: [CrashLogEntry], artifacts: [CrashArtifacts] = []) {
-        guard !entries.isEmpty else { return }
+        guard !entries.isEmpty || !artifacts.isEmpty else { return }
         storeLock.lock()
         // Written under the lock for the same reason as in `recordCrash(_:)`: a save prunes the
         // files of every crash not in the list it saves.
@@ -226,6 +226,11 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: CrashLogger.didRecordCrashNotification, object: nil)
         }
+    }
+
+    /// A stored crash's details, if any were written.
+    func details(for id: UUID) -> CrashDetails? {
+        CrashArtifactStore.shared.details(for: id)
     }
 
     /// Clears all stored crash logs.

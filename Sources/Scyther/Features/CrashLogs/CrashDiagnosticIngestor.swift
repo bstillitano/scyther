@@ -26,7 +26,11 @@ protocol CrashLogRepository: Sendable {
     var allCrashes: [CrashLogEntry] { get }
 
     /// Stores entries alongside the existing ones, with their files, keeping the store's cap.
+    /// Artifacts may also be for entries already stored, whose files they replace.
     func record(_ entries: [CrashLogEntry], artifacts: [CrashArtifacts])
+
+    /// A stored crash's details, if any were written.
+    func details(for id: UUID) -> CrashDetails?
 }
 
 /// Finds the session a MetricKit crash happened in.
@@ -113,7 +117,14 @@ struct CrashDiagnosticIngestor: Sendable {
             entries.append(entry)
             artifacts.append(CrashArtifacts(id: entry.id, details: details, diagnosticJSON: record.diagnosticJSON))
         }
-        if !entries.isEmpty {
+        /// A diagnostic that duplicates a handler crash is not stored as a crash of its own, but
+        /// what it adds — every thread, and the raw diagnostic — is folded into that crash.
+        for (record, entryID) in result.claims {
+            let metricKit = CrashDiagnosticMapper.details(for: record, symbolicator: symbolicator)
+            let merged = (crashes.details(for: entryID) ?? CrashDetails()).merging(metricKit: metricKit)
+            artifacts.append(CrashArtifacts(id: entryID, details: merged, diagnosticJSON: record.diagnosticJSON))
+        }
+        if !entries.isEmpty || !artifacts.isEmpty {
             crashes.record(entries, artifacts: artifacts)
         }
         if !result.fingerprints.isEmpty {
@@ -131,26 +142,24 @@ struct CrashDiagnosticIngestor: Sendable {
     ///   - symbolicator: Names frames for the stack traces.
     /// - Returns: The entries to store, and what to remember: the fingerprint of every diagnostic
     ///   looked at, and a ``claimKey(for:)`` for every handler entry a diagnostic matched.
-    static func newEntries(
-        from records: [CrashDiagnosticRecord],
-        stored: [CrashLogEntry],
-        seen: Set<String>,
-        symbolicator: CrashFrameSymbolicating
-    ) -> (entries: [CrashLogEntry], fingerprints: [String]) {
-        let result = newRecords(from: records, stored: stored, seen: seen)
-        return (result.records.map { CrashDiagnosticMapper.entry(for: $0, symbolicator: symbolicator) },
-                result.fingerprints)
-    }
-
-    /// The decision, as the diagnostics to keep rather than the entries made from them.
+    /// The decision itself, apart from any storage.
+    ///
+    /// - Parameters:
+    ///   - records: The diagnostics MetricKit delivered.
+    ///   - stored: The crash entries already stored.
+    ///   - seen: The fingerprints of diagnostics already ingested.
+    /// - Returns: The diagnostics to store as crashes of their own; the ones that duplicate a
+    ///   handler crash, with that crash's identifier; and what to remember — the fingerprint of
+    ///   every diagnostic looked at, and a ``claimKey(for:)`` for every handler entry claimed.
     static func newRecords(
         from records: [CrashDiagnosticRecord],
         stored: [CrashLogEntry],
         seen: Set<String>
-    ) -> (records: [CrashDiagnosticRecord], fingerprints: [String]) {
+    ) -> (records: [CrashDiagnosticRecord], claims: [(record: CrashDiagnosticRecord, entryID: UUID)], fingerprints: [String]) {
         var seen = seen
         var unmatched = stored.filter { $0.source == .exceptionHandler && !seen.contains(claimKey(for: $0)) }
         var kept: [CrashDiagnosticRecord] = []
+        var claims: [(record: CrashDiagnosticRecord, entryID: UUID)] = []
         var fingerprints: [String] = []
 
         /// Named diagnostics first, so a handler entry is claimed by the diagnostic that names it
@@ -162,12 +171,14 @@ struct CrashDiagnosticIngestor: Sendable {
             fingerprints.append(record.fingerprint)
 
             if let index = unmatched.firstIndex(where: { matches($0, record) }) {
-                fingerprints.append(claimKey(for: unmatched.remove(at: index)))
+                let claimed = unmatched.remove(at: index)
+                fingerprints.append(claimKey(for: claimed))
+                claims.append((record, claimed.id))
                 continue
             }
             kept.append(record)
         }
-        return (kept, fingerprints)
+        return (kept, claims, fingerprints)
     }
 
     /// What is remembered once a diagnostic has matched a handler entry. Kept in the fingerprint

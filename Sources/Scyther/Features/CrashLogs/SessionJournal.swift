@@ -7,6 +7,7 @@
 
 #if !os(macOS)
 import Foundation
+import os
 
 /// Writes each launch's console output and network traffic to disk as it happens, so that a crash
 /// can be exported with what the app was doing when it died.
@@ -63,8 +64,8 @@ final class SessionJournal: @unchecked Sendable {
         /// MetricKit reported the crashed process's identifier, and a session ran as it.
         case processIdentifier
 
-        /// The session was active during the window MetricKit's payload covers. The best guess
-        /// available, but a guess: a wide window can cover more than one session.
+        /// The session was the only one of the crashed build active during the window MetricKit's
+        /// payload covers. A strong guess, but a guess.
         case timeWindow
     }
 
@@ -76,6 +77,11 @@ final class SessionJournal: @unchecked Sendable {
 
     /// How many sessions are kept, not counting those a crash refers to.
     static let maxSessions = 10
+
+    /// How many of the sessions stored crashes refer to are kept. The rest are removed, and their
+    /// crashes export without session logs. Each session can hold ten megabytes, and fifty crashes
+    /// could otherwise keep fifty sessions.
+    static let maxPinnedSessions = 10
 
     /// The size at which the console log drops its oldest half.
     static let consoleCap = 2 * 1024 * 1024
@@ -94,6 +100,11 @@ final class SessionJournal: @unchecked Sendable {
 
     /// Marks ``queue``, so ``flush()`` can tell when it is already on it.
     private let queueKey = DispatchSpecificKey<Bool>()
+
+    /// Whether a session has started. Read on every console line and request, from any thread, so
+    /// that nothing is formatted or queued before ``start(pinned:now:)`` — or ever, when Scyther
+    /// is not started.
+    private let isRecording = OSAllocatedUnfairLock(initialState: false)
 
     /// Creates a journal.
     ///
@@ -127,6 +138,8 @@ final class SessionJournal: @unchecked Sendable {
             appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown",
             buildNumber: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
         )
+        /// Only what capture needs happens before returning. Pruning reads every session's files,
+        /// and runs on the queue after.
         queue.sync {
             closeHandles()
             current = session
@@ -135,7 +148,10 @@ final class SessionJournal: @unchecked Sendable {
             if let data = try? JSONEncoder().encode(session) {
                 try? data.write(to: directory.appendingPathComponent("session.json"), options: .atomic)
             }
-            prune(keeping: pinned.union([session.id]))
+        }
+        isRecording.withLock { $0 = true }
+        queue.async {
+            self.prune(current: session.id, pinned: pinned)
         }
         return session.id
     }
@@ -147,10 +163,10 @@ final class SessionJournal: @unchecked Sendable {
 
     /// Appends console lines.
     func recordConsole(_ lines: [String], source: String, at date: Date = Date()) {
-        guard !lines.isEmpty else { return }
-        let stamp = Self.timestamp(date)
-        let text = lines.map { "\(stamp) [\(source)] \($0)\n" }.joined()
+        guard !lines.isEmpty, isRecording.withLock({ $0 }) else { return }
         queue.async {
+            let stamp = Self.timestamp(date)
+            let text = lines.map { "\(stamp) [\(source)] \($0)\n" }.joined()
             self.append(Data(text.utf8), to: "console.log", cap: Self.consoleCap)
         }
     }
@@ -158,12 +174,35 @@ final class SessionJournal: @unchecked Sendable {
     /// Appends a completed request as a HAR entry. The entry is built on the journal's queue,
     /// because building it reads the request's bodies from disk.
     func recordRequest(_ request: HTTPRequest) {
+        guard isRecording.withLock({ $0 }) else { return }
         queue.async {
             guard self.current != nil,
                   let entry = NetworkLogHARBuilder.build(from: [request]).log.entries.first,
                   var line = try? JSONEncoder().encode(entry) else { return }
             line.append(0x0A)
             self.append(line, to: "network.jsonl", cap: Self.networkCap)
+        }
+    }
+
+    /// Removes the network traffic of every session, as clearing the network log does. The
+    /// journal's copy must not outlive the log the developer chose to clear.
+    func clearNetworkLogs() {
+        clear("network.jsonl")
+    }
+
+    /// Removes the console output of every session, as clearing the console does.
+    func clearConsoleLogs() {
+        clear("console.log")
+    }
+
+    private func clear(_ name: String) {
+        queue.async {
+            try? self.handles[name]?.close()
+            self.handles[name] = nil
+            let contents = (try? FileManager.default.contentsOfDirectory(at: self.root, includingPropertiesForKeys: nil)) ?? []
+            for directory in contents {
+                try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+            }
         }
     }
 
@@ -218,10 +257,12 @@ final class SessionJournal: @unchecked Sendable {
 
     /// The session a MetricKit crash happened in.
     ///
-    /// The process identifier settles it when MetricKit reports one (iOS 17 and later). Without
-    /// it, the newest earlier session of the same build that was active during the payload's
-    /// window is taken — which is the crashed session whenever, as usual, the diagnostic arrives on
-    /// the launch straight after the crash.
+    /// The process identifier settles it when MetricKit reports one (iOS 17 and later), as long as
+    /// the session with that identifier was also active during the payload's window: identifiers
+    /// are reused, and the journal keeps several sessions. Without one, a session is chosen only
+    /// when it is the *only* earlier session of the crashed build that was active during the
+    /// window. A wide window covers several launches, and attaching the wrong launch's logs to a
+    /// crash is worse than attaching none.
     ///
     /// - Parameters:
     ///   - start: The start of the payload's window.
@@ -230,7 +271,7 @@ final class SessionJournal: @unchecked Sendable {
     ///   - buildNumber: The crashed build's number.
     ///   - sessions: The sessions to choose from, newest first.
     ///   - current: The running session, which cannot be the one that crashed.
-    /// - Returns: The session and how it was matched, or `nil` if none fits.
+    /// - Returns: The session and how it was matched, or `nil` if none fits, or several do.
     static func session(
         crashedBetween start: Date,
         and end: Date,
@@ -242,16 +283,18 @@ final class SessionJournal: @unchecked Sendable {
         let tolerance: TimeInterval = 60
         let lower = min(start, end).addingTimeInterval(-tolerance)
         let upper = max(start, end).addingTimeInterval(tolerance)
-        let earlier = sessions.filter { $0.id != current && $0.startedAt <= upper }
+        let active = sessions.filter { session in
+            session.id != current
+                && session.startedAt <= upper
+                && (session.lastActivity ?? session.startedAt) >= lower
+        }
 
-        if let processID, let session = earlier.first(where: { $0.processID == processID }) {
+        if let processID, let session = active.first(where: { $0.processID == processID }) {
             return (session, .processIdentifier)
         }
-        let candidate = earlier.first { session in
-            (session.lastActivity ?? session.startedAt) >= lower
-                && (buildNumber == nil || session.buildNumber == buildNumber)
-        }
-        return candidate.map { ($0, .timeWindow) }
+        let candidates = active.filter { buildNumber == nil || $0.buildNumber == buildNumber }
+        guard candidates.count == 1, let session = candidates.first else { return nil }
+        return (session, .timeWindow)
     }
 
     // MARK: - Files
@@ -282,10 +325,19 @@ final class SessionJournal: @unchecked Sendable {
     }
 
     /// Rewrites a file without its oldest half, cut at a line boundary.
+    ///
+    /// The newest line always survives, however long it is. Cutting at the first line break after
+    /// the midpoint alone would empty the file whenever the newest line is longer than everything
+    /// before it — one large response body would wipe the whole network log.
     static func dropOldestHalf(of url: URL) {
-        guard let data = try? Data(contentsOf: url) else { return }
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return }
         let middle = data.index(data.startIndex, offsetBy: data.count / 2)
-        let cut = data[middle...].firstIndex(of: 0x0A).map { data.index(after: $0) } ?? data.endIndex
+        var cut = data[middle...].firstIndex(of: 0x0A).map { data.index(after: $0) } ?? data.endIndex
+        if cut == data.endIndex {
+            /// The start of the last line: just past the line break before the file's final one.
+            let body = data.last == 0x0A ? data[..<data.index(before: data.endIndex)] : data[...]
+            cut = body.lastIndex(of: 0x0A).map { data.index(after: $0) } ?? data.startIndex
+        }
         try? Data(data[cut...]).write(to: url, options: .atomic)
     }
 
@@ -296,11 +348,22 @@ final class SessionJournal: @unchecked Sendable {
         handles.removeAll()
     }
 
-    /// Removes every session directory not in `ids`, beyond the newest ``maxSessions``.
-    private func prune(keeping ids: Set<UUID>) {
-        let excess = sessions().dropFirst(Self.maxSessions).filter { !ids.contains($0.id) }
-        for session in excess {
-            try? FileManager.default.removeItem(at: directory(for: session.id))
+    /// Keeps the running session, the newest ``maxSessions`` others, and the newest
+    /// ``maxPinnedSessions`` that stored crashes refer to. Removes everything else, including any
+    /// directory without a readable `session.json` — a launch killed while it started — which
+    /// would otherwise never be listed, and so never be removed.
+    private func prune(current: UUID, pinned: Set<UUID>) {
+        let sessions = self.sessions().filter { $0.id != current }
+        let keptPinned = Set(sessions.filter { pinned.contains($0.id) }.prefix(Self.maxPinnedSessions).map(\.id))
+        let keptOthers = Set(sessions.filter { !pinned.contains($0.id) }.prefix(Self.maxSessions).map(\.id))
+        let kept = keptPinned.union(keptOthers).union([current])
+
+        let contents = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        for directory in contents {
+            guard let id = UUID(uuidString: directory.lastPathComponent), kept.contains(id) else {
+                try? FileManager.default.removeItem(at: directory)
+                continue
+            }
         }
     }
 

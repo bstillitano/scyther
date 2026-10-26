@@ -141,6 +141,9 @@ struct CrashDetailsView: View {
         .sheet(item: $exportViewModel) { exportViewModel in
             CrashExportSheet(viewModel: exportViewModel)
         }
+        .onFirstAppear {
+            await viewModel.onFirstAppear()
+        }
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $viewModel.searchText, prompt: localized("Search stack trace"))
         .toolbar {

@@ -50,13 +50,19 @@ class CrashDetailsViewModel: ViewModel {
     /// The crash log entry being displayed.
     let crash: CrashLogEntry
 
-    /// The crash's threads, images and codes, or `nil` if none were captured — a crash stored
-    /// before they were.
-    let details: CrashDetails?
+    /// The crash's threads, images and codes, once loaded — `nil` before that, and for a crash
+    /// stored before they were captured.
+    @Published private(set) var details: CrashDetails?
 
     /// The crash in the layout of Apple's text crash reports: every thread and binary image, and
-    /// the `atos` command for the app's frames.
-    let fullReport: String
+    /// the `atos` command for the app's frames. Until it is loaded, the entry's own report.
+    @Published private(set) var fullReport: String
+
+    /// Where the crash's details are read from.
+    private let artifacts: CrashArtifactStore
+
+    /// Where the crash's session is read from.
+    private let journal: SessionJournal
 
     // MARK: - Published Properties
 
@@ -93,11 +99,26 @@ class CrashDetailsViewModel: ViewModel {
     /// - Parameter crash: The crash log entry to display details for.
     init(crash: CrashLogEntry, artifacts: CrashArtifactStore = .shared, journal: SessionJournal = .shared) {
         self.crash = crash
-        let details = artifacts.details(for: crash.id)
-        self.details = details
-        let session = crash.sessionID.flatMap { id in journal.sessions().first { $0.id == id } }
-        self.fullReport = CrashReportFormatter.report(entry: crash, details: details, session: session)
+        self.artifacts = artifacts
+        self.journal = journal
+        self.fullReport = crash.fullReport
         super.init()
+    }
+
+    /// Reads the crash's details and formats its full report, off the main actor: both read
+    /// files, and the report runs to every frame of every thread.
+    override func onFirstAppear() async {
+        await super.onFirstAppear()
+        let crash = self.crash
+        let artifacts = self.artifacts
+        let journal = self.journal
+        let loaded = await Task.detached(priority: .userInitiated) {
+            let details = artifacts.details(for: crash.id)
+            let session = crash.sessionID.flatMap { id in journal.sessions().first { $0.id == id } }
+            return (details, CrashReportFormatter.report(entry: crash, details: details, session: session))
+        }.value
+        details = loaded.0
+        fullReport = loaded.1
     }
 
     /// The exception codes, in hex, or `nil` when there are none.

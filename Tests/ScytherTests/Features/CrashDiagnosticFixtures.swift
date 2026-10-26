@@ -166,8 +166,12 @@ final class InMemoryCrashLogRepository: CrashLogRepository, @unchecked Sendable 
         allCrashes = crashes
     }
 
+    func details(for id: UUID) -> CrashDetails? {
+        artifacts.last { $0.id == id }?.details
+    }
+
     func record(_ entries: [CrashLogEntry], artifacts: [CrashArtifacts]) {
-        recorded.append(entries)
+        if !entries.isEmpty { recorded.append(entries) }
         self.artifacts += artifacts
         allCrashes = (allCrashes + entries).sorted { $0.timestamp > $1.timestamp }
     }

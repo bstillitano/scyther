@@ -152,7 +152,7 @@ enum CrashReportFormatter {
         switch SessionJournal.Match(rawValue: match) {
         case .currentSession: return "the session that crashed"
         case .processIdentifier: return "matched by process identifier"
-        case .timeWindow: return "matched by time window (best guess)"
+        case .timeWindow: return "the only launch of this build active in the reporting window"
         case nil: return match
         }
     }

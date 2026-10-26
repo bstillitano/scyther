@@ -145,7 +145,8 @@ enum CrashExporter {
                        Proxyman, or Chrome DevTools.
 
     The console and network logs are present only when the crash could be tied to its session.
-    For a MetricKit crash before iOS 17, that is a best guess by time, noted in report.txt.
+    For a MetricKit crash before iOS 17, that means it was the only launch of the build active
+    in MetricKit's reporting window; report.txt says how each crash was matched.
 
     Crashes MetricKit reports carry no Swift error message. A force unwrap of nil, for example,
     is reported as EXC_BREAKPOINT (SIGTRAP); the stack says where, and console.log may say why.

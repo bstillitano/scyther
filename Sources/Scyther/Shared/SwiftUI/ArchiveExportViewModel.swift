@@ -48,6 +48,12 @@ class ArchiveExportViewModel: ViewModel {
     /// The minimum wall-clock time for a rebuild triggered by ``setRedaction(_:)``.
     private let minimumRebuildDuration: Duration
 
+    /// Counts build requests. Only the build for the newest may publish its archive.
+    private var generation = 0
+
+    /// The most recent build, which the next one waits for.
+    private var buildTask: Task<Void, Never>?
+
     /// Creates an export view model.
     ///
     /// - Parameters:
@@ -71,7 +77,10 @@ class ArchiveExportViewModel: ViewModel {
     /// Builds the archive off the main actor and publishes the outcome.
     override func onFirstAppear() async {
         await super.onFirstAppear()
-        await build()
+        let generation = self.generation
+        let task = Task { @MainActor in await build(generation: generation) }
+        buildTask = task
+        await task.value
     }
 
     /// Changes the redaction setting and rebuilds the archive.
@@ -81,6 +90,13 @@ class ArchiveExportViewModel: ViewModel {
     /// file is deleted. The rebuild is padded to at least the minimum duration so the spinner is
     /// visible rather than a flicker.
     ///
+    /// Builds run one at a time, and only the newest may publish. Toggling twice in quick
+    /// succession must never leave the archive of the earlier setting in place — an unredacted
+    /// archive behind a toggle that says redaction is on — so each rebuild waits for the one
+    /// before it, and a build that is no longer the newest deletes its archive instead of
+    /// publishing it. Waiting also keeps two builds from writing the same staging folder, whose
+    /// name only changes once a second.
+    ///
     /// - Parameter enabled: Whether to redact.
     /// - Returns: The rebuild task, or `nil` when the value did not change. Await it in tests.
     @discardableResult
@@ -88,31 +104,47 @@ class ArchiveExportViewModel: ViewModel {
         guard enabled != redactSensitiveValues else { return nil }
         redactSensitiveValues = enabled
         isRebuilding = true
-        let previous = archiveURL
+        generation += 1
+        let generation = self.generation
+        let preceding = buildTask
         let minimum = minimumRebuildDuration
-        return Task { @MainActor in
+        let task = Task { @MainActor in
+            await preceding?.value
+            guard generation == self.generation else { return }
             let started = ContinuousClock.now
-            await build()
+            let previous = archiveURL
+            await build(generation: generation)
             let remaining = minimum - (ContinuousClock.now - started)
             if remaining > .zero {
                 try? await Task.sleep(for: remaining)
             }
-            isRebuilding = false
             if let previous, previous != archiveURL {
                 try? FileManager.default.removeItem(at: previous)
             }
+            if generation == self.generation {
+                isRebuilding = false
+            }
         }
+        buildTask = task
+        return task
     }
 
-    private func build() async {
+    /// Builds the archive for the current setting and publishes it — unless a newer build was
+    /// requested meanwhile, in which case the archive is deleted unseen.
+    private func build(generation: Int) async {
         let redact = redactSensitiveValues
         let archive = self.archive
         do {
             let url = try await Task.detached(priority: .userInitiated) {
                 try archive(redact)
             }.value
+            guard generation == self.generation else {
+                try? FileManager.default.removeItem(at: url)
+                return
+            }
             state = .ready(url)
         } catch {
+            guard generation == self.generation else { return }
             state = .failed(error.localizedDescription)
         }
     }

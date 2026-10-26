@@ -266,10 +266,13 @@ import Testing
 
     private let inWindow = CrashDiagnosticFixtures.windowBegin.addingTimeInterval(600)
 
+    /// The production decision, `newRecords`, with its kept diagnostics mapped to entries.
     private func newEntries(_ records: [CrashDiagnosticRecord],
                             stored: [CrashLogEntry] = [],
                             seen: Set<String> = []) -> (entries: [CrashLogEntry], fingerprints: [String]) {
-        CrashDiagnosticIngestor.newEntries(from: records, stored: stored, seen: seen, symbolicator: NoSymbolicator())
+        let result = CrashDiagnosticIngestor.newRecords(from: records, stored: stored, seen: seen)
+        return (result.records.map { CrashDiagnosticMapper.entry(for: $0, symbolicator: NoSymbolicator()) },
+                result.fingerprints)
     }
 
     @Test func storesANewDiagnostic() {
