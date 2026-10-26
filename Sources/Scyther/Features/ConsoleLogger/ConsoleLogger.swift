@@ -309,6 +309,9 @@ public final class ConsoleLogger: @unchecked Sendable {
         // Split by newlines and create separate entries for each line
         let lines = message.components(separatedBy: .newlines).filter { !$0.isEmpty }
 
+        // Also written to disk, so a crash can be exported with the console output that led to it.
+        SessionJournal.shared.recordConsole(lines, source: source.rawValue)
+
         logsQueue.async(flags: .barrier) {
             for line in lines {
                 let entry = ConsoleLogEntry(

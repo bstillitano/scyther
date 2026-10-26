@@ -34,6 +34,24 @@ struct CrashDiagnosticRecord: Equatable, Sendable {
     /// The system's description of why the process was terminated.
     var terminationReason: String?
 
+    /// The Mach exception code. For `EXC_BAD_ACCESS`, the kind of fault.
+    var exceptionCode: Int?
+
+    /// The virtual memory region around a faulting address, as MetricKit describes it.
+    var virtualMemoryRegionInfo: String?
+
+    /// The crashed process's identifier. MetricKit reports it from iOS 17.
+    var processID: Int?
+
+    /// The app's bundle identifier, from the JSON, or the typed property from iOS 26.
+    var bundleIdentifier: String?
+
+    /// The CPU architecture, such as `arm64e`.
+    var architecture: String?
+
+    /// The diagnostic exactly as MetricKit delivered it, for the export.
+    var diagnosticJSON: Data
+
     /// The threads in the diagnostic's call stack tree.
     var threads: [CrashDiagnosticJSONReader.Thread]
 
@@ -79,6 +97,12 @@ struct CrashDiagnosticRecord: Equatable, Sendable {
         exceptionName = metaData("objectiveCexceptionReason.exceptionName")
         composedMessage = metaData("objectiveCexceptionReason.composedMessage")
         terminationReason = metaData("terminationReason")
+        exceptionCode = metaData("exceptionCode").flatMap { Int($0) }
+        virtualMemoryRegionInfo = metaData("virtualMemoryRegionInfo")
+        processID = metaData("pid").flatMap { Int($0) }
+        bundleIdentifier = metaData("bundleIdentifier")
+        architecture = metaData("platformArchitecture")
+        self.diagnosticJSON = diagnosticJSON
         threads = document.threads
         appVersion = metaData("appVersion") ?? "Unknown"
         buildNumber = metaData("appBuildVersion") ?? "Unknown"
@@ -108,12 +132,21 @@ struct CrashDiagnosticRecord: Equatable, Sendable {
         exceptionType = diagnostic.exceptionType?.intValue
         signal = diagnostic.signal?.intValue
         terminationReason = diagnostic.terminationReason
+        exceptionCode = diagnostic.exceptionCode?.intValue
+        virtualMemoryRegionInfo = diagnostic.virtualMemoryRegionInfo ?? virtualMemoryRegionInfo
+        architecture = diagnostic.metaData.platformArchitecture
         buildNumber = diagnostic.metaData.applicationBuildVersion
         osVersion = diagnostic.metaData.osVersion
         deviceModel = diagnostic.metaData.deviceType
-        if #available(iOS 17.0, *), let reason = diagnostic.exceptionReason {
-            exceptionName = reason.exceptionName
-            composedMessage = reason.composedMessage
+        if #available(iOS 17.0, *) {
+            processID = Int(diagnostic.metaData.pid)
+            if let reason = diagnostic.exceptionReason {
+                exceptionName = reason.exceptionName
+                composedMessage = reason.composedMessage
+            }
+        }
+        if #available(iOS 26.0, *) {
+            bundleIdentifier = diagnostic.metaData.bundleIdentifier
         }
         fingerprint = computedFingerprint
     }

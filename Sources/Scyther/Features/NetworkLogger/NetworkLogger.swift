@@ -74,6 +74,9 @@ actor NetworkLogger {
     func add(_ obj: HTTPRequest) {
         items.insert(obj, at: 0)
         continuation?.yield(items)
+
+        // Also written to disk, so a crash can be exported with the traffic that led to it.
+        SessionJournal.shared.recordRequest(obj)
     }
 
     /// Removes all HTTP requests from the log and deletes associated files from disk.

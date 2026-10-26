@@ -33,7 +33,8 @@ final class CrashDiagnosticsCollector: NSObject, MXMetricManagerSubscriber, @unc
     private lazy var ingestor = CrashDiagnosticIngestor(
         crashes: CrashLogger.instance,
         fingerprints: CrashDiagnosticFingerprintStore.shared,
-        symbolicator: LoadedImageSymbolicator()
+        symbolicator: LoadedImageSymbolicator(),
+        sessions: SessionJournal.shared
     )
 
     /// Every payload is ingested here, one at a time, so two deliveries never decide against the

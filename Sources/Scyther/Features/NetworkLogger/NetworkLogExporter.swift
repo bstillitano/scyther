@@ -76,14 +76,16 @@ enum NetworkLogExporter {
     ///   - now: The timestamp.
     ///   - timeZone: The zone used to format it. Defaults to the current zone.
     ///   - appName: The name to prefix. Defaults to ``hostAppName``.
-    static func archiveName(now: Date, timeZone: TimeZone = .current, appName: String = hostAppName) -> String {
+    ///   - kind: What the archive holds, between the app name and the timestamp.
+    static func archiveName(now: Date, timeZone: TimeZone = .current, appName: String = hostAppName,
+                            kind: String = "Network-Log") -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = timeZone
         formatter.dateFormat = "yyyy-MM-dd-HHmmss"
         let trimmed = appName.trimmingCharacters(in: .whitespacesAndNewlines)
         let prefix = trimmed.isEmpty ? "App" : sanitised(trimmed.replacingOccurrences(of: " ", with: "-"))
-        return "\(prefix)-Network-Log-\(formatter.string(from: now))"
+        return "\(prefix)-\(kind)-\(formatter.string(from: now))"
     }
 
     /// The per-request folder name, e.g. `003-DELETE-api.example.com`.
@@ -182,7 +184,7 @@ enum NetworkLogExporter {
         return Data(NetworkLogRedactor.redactText(String(decoding: body, as: UTF8.self)).utf8)
     }
 
-    private static func sanitised(_ value: String) -> String {
+    static func sanitised(_ value: String) -> String {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ".-_"))
         return String(value.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" })
     }

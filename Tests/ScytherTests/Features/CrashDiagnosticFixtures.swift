@@ -144,15 +144,15 @@ enum CrashDiagnosticFixtures {
 
 /// A symbolicator that names nothing.
 struct NoSymbolicator: CrashFrameSymbolicating {
-    func symbol(binaryUUID: UUID, offset: UInt64) -> String? { nil }
+    func symbol(binaryUUID: UUID, offset: UInt64) -> CrashSymbol? { nil }
 }
 
 /// A symbolicator that names every frame of one binary.
 struct FixedSymbolicator: CrashFrameSymbolicating {
     let uuid: UUID
 
-    func symbol(binaryUUID: UUID, offset: UInt64) -> String? {
-        binaryUUID == uuid ? "frame@\(offset)" : nil
+    func symbol(binaryUUID: UUID, offset: UInt64) -> CrashSymbol? {
+        binaryUUID == uuid ? CrashSymbol(name: "frame@\(offset)", distance: 4) : nil
     }
 }
 
@@ -160,13 +160,15 @@ struct FixedSymbolicator: CrashFrameSymbolicating {
 final class InMemoryCrashLogRepository: CrashLogRepository, @unchecked Sendable {
     var allCrashes: [CrashLogEntry]
     private(set) var recorded: [[CrashLogEntry]] = []
+    private(set) var artifacts: [CrashArtifacts] = []
 
     init(_ crashes: [CrashLogEntry] = []) {
         allCrashes = crashes
     }
 
-    func record(_ entries: [CrashLogEntry]) {
+    func record(_ entries: [CrashLogEntry], artifacts: [CrashArtifacts]) {
         recorded.append(entries)
+        self.artifacts += artifacts
         allCrashes = (allCrashes + entries).sorted { $0.timestamp > $1.timestamp }
     }
 }

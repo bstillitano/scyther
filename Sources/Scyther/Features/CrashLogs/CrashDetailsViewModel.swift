@@ -50,6 +50,14 @@ class CrashDetailsViewModel: ViewModel {
     /// The crash log entry being displayed.
     let crash: CrashLogEntry
 
+    /// The crash's threads, images and codes, or `nil` if none were captured — a crash stored
+    /// before they were.
+    let details: CrashDetails?
+
+    /// The crash in the layout of Apple's text crash reports: every thread and binary image, and
+    /// the `atos` command for the app's frames.
+    let fullReport: String
+
     // MARK: - Published Properties
 
     /// The current search text for filtering the stack trace.
@@ -83,20 +91,38 @@ class CrashDetailsViewModel: ViewModel {
     /// Creates a new crash details view model.
     ///
     /// - Parameter crash: The crash log entry to display details for.
-    init(crash: CrashLogEntry) {
+    init(crash: CrashLogEntry, artifacts: CrashArtifactStore = .shared, journal: SessionJournal = .shared) {
         self.crash = crash
+        let details = artifacts.details(for: crash.id)
+        self.details = details
+        let session = crash.sessionID.flatMap { id in journal.sessions().first { $0.id == id } }
+        self.fullReport = CrashReportFormatter.report(entry: crash, details: details, session: session)
         super.init()
+    }
+
+    /// The exception codes, in hex, or `nil` when there are none.
+    var exceptionCodes: String? {
+        guard let codes = details?.exceptionCodes, !codes.isEmpty else { return nil }
+        return codes.map { String(format: "0x%016llx", $0) }.joined(separator: ", ")
+    }
+
+    /// How many threads were captured.
+    var threadCount: Int { details?.threads.count ?? 0 }
+
+    /// A view model for exporting this crash.
+    func makeExportViewModel() -> CrashExportViewModel {
+        CrashExportViewModel(crashes: [crash])
     }
 
     // MARK: - Public Methods
 
     /// Copies the full crash report to the clipboard.
     ///
-    /// This method copies ``CrashLogEntry/fullReport`` to the system
+    /// This method copies ``fullReport`` to the system
     /// clipboard and sets ``copied`` to `true` for visual feedback.
     /// The `copied` flag is automatically reset after 2 seconds.
     func copyToClipboard() {
-        UIPasteboard.general.string = crash.fullReport
+        UIPasteboard.general.string = fullReport
         copied = true
         Task {
             try? await Task.sleep(for: .seconds(2))

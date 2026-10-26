@@ -17,6 +17,7 @@ import SwiftUI
 /// ## Features
 /// - Searchable list filtered by exception name or reason
 /// - Navigation to detailed crash view with ``CrashDetailsView``
+/// - Export of the crashes shown, search applied, via ``CrashExportSheet``
 /// - Clear all functionality to remove stored crashes
 /// - Test crash button in debug builds
 /// - Real-time updates when new crashes are recorded
@@ -41,6 +42,9 @@ struct CrashLogsView: View {
     @StateObject private var viewModel = CrashLogsViewModel()
     @State private var searchText = ""
 
+    /// The export sheet's view model while the sheet is open.
+    @State private var exportViewModel: CrashExportViewModel?
+
     private var filteredCrashes: [CrashLogEntry] {
         if searchText.isEmpty {
             return viewModel.crashes
@@ -64,6 +68,16 @@ struct CrashLogsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if !viewModel.crashes.isEmpty {
+                    Button {
+                        exportViewModel = CrashExportViewModel(crashes: filteredCrashes)
+                    } label: {
+                        Label(localized("Export"), systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(filteredCrashes.isEmpty)
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                if !viewModel.crashes.isEmpty {
                     Button(localized("Clear All"), role: .destructive) {
                         viewModel.clearAll()
                     }
@@ -76,6 +90,9 @@ struct CrashLogsView: View {
                 }
             }
             #endif
+        }
+        .sheet(item: $exportViewModel) { exportViewModel in
+            CrashExportSheet(viewModel: exportViewModel)
         }
         .onFirstAppear {
             await viewModel.onFirstAppear()

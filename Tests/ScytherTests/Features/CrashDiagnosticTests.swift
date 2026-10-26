@@ -156,8 +156,8 @@ import Testing
                                                 symbolicator: FixedSymbolicator(uuid: CrashDiagnosticFixtures.appUUID))
 
         #expect(entry.stackTrace == [
-            "ExampleApp + 24576 (frame@24576)",
-            "ExampleApp + 12000 (frame@12000)",
+            "ExampleApp + 24576 (frame@24576 + 4)",
+            "ExampleApp + 12000 (frame@12000 + 4)",
             "dyld + 99024",
         ])
     }
@@ -464,7 +464,7 @@ import Testing
 
         let symbol = LoadedImageSymbolicator().symbol(binaryUUID: uuid, offset: offset)
 
-        #expect(symbol == "ScytherBootstrapIsInstalled + 4")
+        #expect(symbol == CrashSymbol(name: "ScytherBootstrapIsInstalled", distance: 4))
     }
 
     /// Offset zero is the Mach-O header, which `dladdr` names after a header symbol. That is not a

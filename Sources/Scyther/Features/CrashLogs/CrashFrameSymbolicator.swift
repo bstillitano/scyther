@@ -9,11 +9,23 @@
 import Foundation
 import MachO
 
+/// A function a frame was in, and how far into it.
+struct CrashSymbol: Equatable, Sendable {
+    /// The demangled symbol name.
+    var name: String
+
+    /// The distance from the symbol's start to the frame's address, in bytes.
+    var distance: UInt64
+
+    /// `name + distance`, as crash reports print it.
+    var description: String { "\(name) + \(distance)" }
+}
+
 /// Names the function a crash frame was in, given the binary and the offset into it.
 protocol CrashFrameSymbolicating: Sendable {
     /// The symbol containing `offset` in the binary with `binaryUUID`, or `nil` if it cannot be
     /// named.
-    func symbol(binaryUUID: UUID, offset: UInt64) -> String?
+    func symbol(binaryUUID: UUID, offset: UInt64) -> CrashSymbol?
 }
 
 /// Best-effort symbolication against the images loaded in this process.
@@ -49,18 +61,23 @@ struct LoadedImageSymbolicator: CrashFrameSymbolicating {
         self.headers = headers
     }
 
-    func symbol(binaryUUID: UUID, offset: UInt64) -> String? {
+    func symbol(binaryUUID: UUID, offset: UInt64) -> CrashSymbol? {
         guard let base = headers[binaryUUID],
               let address = UnsafeRawPointer(bitPattern: base &+ UInt(offset)) else { return nil }
+        return Self.symbol(at: address)
+    }
 
+    /// The demangled symbol containing an address in this process, and how far into it the
+    /// address is — or `nil` when `dladdr` offers only the header or a symbol too far back to trust.
+    static func symbol(at address: UnsafeRawPointer) -> CrashSymbol? {
         var info = Dl_info()
         guard dladdr(address, &info) != 0, let name = info.dli_sname,
               info.dli_saddr != info.dli_fbase else { return nil }
 
         let distance = UInt(bitPattern: address) &- UInt(bitPattern: info.dli_saddr)
-        guard distance <= Self.maximumSymbolDistance else { return nil }
+        guard distance <= maximumSymbolDistance else { return nil }
 
-        return "\(Self.demangle(String(cString: name))) + \(distance)"
+        return CrashSymbol(name: demangle(String(cString: name)), distance: UInt64(distance))
     }
 
     /// Reads `LC_UUID` from a 64-bit Mach-O header.

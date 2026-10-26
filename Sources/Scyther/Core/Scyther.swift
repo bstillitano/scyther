@@ -222,6 +222,10 @@ public enum Scyther {
         let sessionHooksInstalled = ScytherBootstrapIsInstalled()
         assert(sessionHooksInstalled, "ScytherBootstrap did not install the URLSessionConfiguration hooks")
 
+        // Start writing this launch's console output and traffic to disk before either is
+        // captured, keeping the earlier sessions stored crashes refer to.
+        SessionJournal.shared.start(pinned: Set(CrashLogger.instance.allCrashes.compactMap(\.sessionID)))
+
         // Clean up old network logs (files older than 7 days)
         NetworkLogCleaner.shared.cleanupOldLogs()
 

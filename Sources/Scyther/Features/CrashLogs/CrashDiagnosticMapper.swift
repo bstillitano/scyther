@@ -24,8 +24,11 @@ enum CrashDiagnosticMapper {
     /// - Parameters:
     ///   - record: The diagnostic.
     ///   - symbolicator: Names the frames it can.
+    ///   - sessionID: The session the crash happened in, if known.
     /// - Returns: The entry to store.
-    static func entry(for record: CrashDiagnosticRecord, symbolicator: CrashFrameSymbolicating) -> CrashLogEntry {
+    static func entry(for record: CrashDiagnosticRecord,
+                      symbolicator: CrashFrameSymbolicating,
+                      sessionID: UUID? = nil) -> CrashLogEntry {
         CrashLogEntry(
             timestamp: record.timeStampEnd,
             name: name(for: record),
@@ -35,8 +38,69 @@ enum CrashDiagnosticMapper {
             buildNumber: record.buildNumber,
             osVersion: record.osVersion,
             deviceModel: record.deviceModel,
-            source: .metricKit
+            source: .metricKit,
+            sessionID: sessionID
         )
+    }
+
+    /// The diagnostic's full details: every thread, and an image for every binary the frames
+    /// point into.
+    ///
+    /// MetricKit gives each frame its binary's UUID and name, and both its offset and its absolute
+    /// address in the crashed process, so the difference between the two is where that binary was
+    /// loaded — which is what an `.ips` file and `atos` both need.
+    ///
+    /// - Parameters:
+    ///   - record: The diagnostic.
+    ///   - symbolicator: Names the frames it can.
+    /// - Returns: The details.
+    static func details(for record: CrashDiagnosticRecord, symbolicator: CrashFrameSymbolicating) -> CrashDetails {
+        var images: [CrashDetails.BinaryImage] = []
+        var indices: [String: Int] = [:]
+
+        func imageIndex(for frame: CrashDiagnosticJSONReader.Frame) -> Int? {
+            guard let key = frame.binaryUUID ?? frame.binaryName else { return nil }
+            if let index = indices[key] { return index }
+            var loadAddress: UInt64?
+            if let address = frame.address, let offset = frame.resolvedOffset, address >= offset {
+                loadAddress = address - offset
+            }
+            images.append(CrashDetails.BinaryImage(
+                name: frame.binaryName ?? frame.binaryUUID ?? "???",
+                uuid: frame.binaryUUID.flatMap(UUID.init(uuidString:)),
+                loadAddress: loadAddress,
+                path: nil,
+                architecture: record.architecture
+            ))
+            indices[key] = images.count - 1
+            return images.count - 1
+        }
+
+        let attributed = record.threads.firstIndex(where: \.isAttributed) ?? (record.threads.isEmpty ? nil : 0)
+        let threads = record.threads.enumerated().map { index, thread in
+            CrashDetails.Thread(crashed: index == attributed, frames: thread.frames.map { frame in
+                let symbol = frame.binaryUUID.flatMap(UUID.init(uuidString:)).flatMap { uuid in
+                    frame.resolvedOffset.flatMap { symbolicator.symbol(binaryUUID: uuid, offset: $0) }
+                }
+                return CrashDetails.Frame(imageIndex: imageIndex(for: frame), offset: frame.resolvedOffset,
+                                          symbol: symbol?.name, symbolOffset: symbol?.distance)
+            })
+        }
+
+        var details = CrashDetails()
+        details.exceptionType = record.exceptionType.map { machExceptionNames[$0] ?? "EXC_\($0)" }
+        details.signal = record.signal.map { signalNames[$0] ?? "SIG\($0)" }
+        details.exceptionCodes = record.exceptionCode.map { [UInt64(truncatingIfNeeded: $0)] } ?? []
+        details.terminationReason = record.terminationReason
+        details.virtualMemoryRegionInfo = record.virtualMemoryRegionInfo
+        details.hardwareModel = record.deviceModel
+        details.operatingSystem = record.osVersion
+        details.processID = record.processID
+        details.bundleIdentifier = record.bundleIdentifier
+        details.architecture = record.architecture
+        details.threads = threads
+        details.images = images
+        return details
     }
 
     /// The exception's name, or the Mach exception and signal.
@@ -76,7 +140,7 @@ enum CrashDiagnosticMapper {
         }
         let uuid = frame.binaryUUID.flatMap(UUID.init(uuidString:))
         let symbol = uuid.flatMap { symbolicator.symbol(binaryUUID: $0, offset: offset) }
-        return symbol.map { "\(binary) + \(offset) (\($0))" } ?? "\(binary) + \(offset)"
+        return symbol.map { "\(binary) + \(offset) (\($0.description))" } ?? "\(binary) + \(offset)"
     }
 
     /// Mach exception types, from `<mach/exception_types.h>`.

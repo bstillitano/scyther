@@ -137,7 +137,8 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
 
         // Cache device info now (on main thread) so it's available during crashes
         CrashLogger.cachedOSVersion = UIDevice.current.systemVersion
-        CrashLogger.cachedDeviceModel = UIDevice.current.model
+        // The hardware identifier, such as `iPhone17,1`, rather than `UIDevice.model`'s "iPhone".
+        CrashLogger.cachedDeviceModel = CrashDetails.currentHardwareModel
         CrashLogger.cachedAppVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         CrashLogger.cachedBuildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
 
@@ -157,6 +158,12 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     /// Records a crash from an exception.
     /// Called from the exception handler - keep this fast and safe.
     private static func recordCrash(_ exception: NSException) {
+        let journal = SessionJournal.shared
+        var details = CrashDetails.capture(exception: exception)
+        let sessionID = journal.currentSessionID
+        if sessionID != nil {
+            details.sessionMatch = SessionJournal.Match.currentSession.rawValue
+        }
         let entry = CrashLogEntry(
             name: exception.name.rawValue,
             reason: exception.reason,
@@ -164,11 +171,19 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
             appVersion: cachedAppVersion,
             buildNumber: cachedBuildNumber,
             osVersion: cachedOSVersion,
-            deviceModel: cachedDeviceModel
+            deviceModel: cachedDeviceModel,
+            sessionID: sessionID
         )
+
+        // Whatever console output and traffic are still queued, written before the process dies.
+        journal.flush()
 
         CrashLogger.instance.storeLock.lock()
         defer { CrashLogger.instance.storeLock.unlock() }
+
+        // The threads and images, under the lock, so a save on another thread — which prunes the
+        // files of crashes not in the list — cannot remove them before this crash is listed.
+        CrashArtifactStore.shared.writeDetails(details, for: entry.id)
 
         // Load existing crashes
         var crashes = CrashLogger.instance.load()
@@ -191,10 +206,20 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     /// crash from a few launches ago may be older than crashes already stored, so the list is
     /// sorted rather than prepended to. Posts ``didRecordCrashNotification`` on the main queue.
     ///
-    /// - Parameter entries: The entries to add.
-    func record(_ entries: [CrashLogEntry]) {
+    /// - Parameters:
+    ///   - entries: The entries to add.
+    ///   - artifacts: Their files, written in the same step.
+    func record(_ entries: [CrashLogEntry], artifacts: [CrashArtifacts] = []) {
         guard !entries.isEmpty else { return }
         storeLock.lock()
+        // Written under the lock for the same reason as in `recordCrash(_:)`: a save prunes the
+        // files of every crash not in the list it saves.
+        for artifact in artifacts {
+            CrashArtifactStore.shared.writeDetails(artifact.details, for: artifact.id)
+            if let diagnostic = artifact.diagnosticJSON {
+                CrashArtifactStore.shared.writeDiagnostic(diagnostic, for: artifact.id)
+            }
+        }
         let crashes = (load() + entries).sorted { $0.timestamp > $1.timestamp }
         save(Array(crashes.prefix(CrashLogger.maxCrashes)))
         storeLock.unlock()
@@ -207,6 +232,7 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     public func clear() {
         storeLock.lock()
         UserDefaults.scyther.removeObject(forKey: CrashLogger.storageKey)
+        CrashArtifactStore.shared.prune(keeping: [])
         storeLock.unlock()
         NotificationCenter.default.post(name: CrashLogger.didRecordCrashNotification, object: nil)
     }
@@ -229,6 +255,8 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
         do {
             let data = try JSONEncoder().encode(crashes)
             UserDefaults.scyther.set(data, forKey: CrashLogger.storageKey)
+            // A crash trimmed off the end of the list takes its files with it.
+            CrashArtifactStore.shared.prune(keeping: Set(crashes.map(\.id)))
             UserDefaults.scyther.synchronize() // Force immediate write - we're crashing
         } catch {
             // Can't do much if encoding fails during a crash

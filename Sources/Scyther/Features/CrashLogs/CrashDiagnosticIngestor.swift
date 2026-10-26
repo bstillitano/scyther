@@ -8,13 +8,40 @@
 #if !os(macOS)
 import Foundation
 
+/// The files that go with one crash entry.
+struct CrashArtifacts: Sendable {
+    /// The entry's identifier.
+    var id: UUID
+
+    /// The crash's threads, images and codes.
+    var details: CrashDetails
+
+    /// The raw MetricKit diagnostic, if the crash came from MetricKit.
+    var diagnosticJSON: Data?
+}
+
 /// The crash log store, as the MetricKit path sees it.
 protocol CrashLogRepository: Sendable {
     /// Every stored crash, newest first.
     var allCrashes: [CrashLogEntry] { get }
 
-    /// Stores entries alongside the existing ones, keeping the store's cap.
-    func record(_ entries: [CrashLogEntry])
+    /// Stores entries alongside the existing ones, with their files, keeping the store's cap.
+    func record(_ entries: [CrashLogEntry], artifacts: [CrashArtifacts])
+}
+
+/// Finds the session a MetricKit crash happened in.
+protocol CrashSessionLocating: Sendable {
+    /// The session `record` crashed in, and how it was matched, or `nil` if none fits.
+    func session(for record: CrashDiagnosticRecord) -> (id: UUID, match: SessionJournal.Match)?
+}
+
+extension SessionJournal: CrashSessionLocating {
+    func session(for record: CrashDiagnosticRecord) -> (id: UUID, match: SessionJournal.Match)? {
+        Self.session(crashedBetween: record.timeStampBegin, and: record.timeStampEnd,
+                     processID: record.processID, buildNumber: record.buildNumber,
+                     in: sessions(), excluding: currentSessionID)
+            .map { ($0.session.id, $0.match) }
+    }
 }
 
 /// Remembers which MetricKit diagnostics have already been ingested.
@@ -52,6 +79,9 @@ struct CrashDiagnosticIngestor: Sendable {
     /// Names frames for the stack traces.
     let symbolicator: CrashFrameSymbolicating
 
+    /// Finds the session each crash happened in. `nil` attaches none.
+    var sessions: CrashSessionLocating? = nil
+
     /// How far outside a payload's window a handler entry may fall and still match.
     ///
     /// The handler stamps its entry a moment before the process dies, and MetricKit's window is
@@ -68,19 +98,28 @@ struct CrashDiagnosticIngestor: Sendable {
     /// - Returns: The entries that were stored.
     @discardableResult
     func ingest(_ records: [CrashDiagnosticRecord]) -> [CrashLogEntry] {
-        let result = Self.newEntries(
+        let result = Self.newRecords(
             from: records,
             stored: crashes.allCrashes,
-            seen: fingerprints.fingerprints,
-            symbolicator: symbolicator
+            seen: fingerprints.fingerprints
         )
-        if !result.entries.isEmpty {
-            crashes.record(result.entries)
+        var entries: [CrashLogEntry] = []
+        var artifacts: [CrashArtifacts] = []
+        for record in result.records {
+            let session = sessions?.session(for: record)
+            let entry = CrashDiagnosticMapper.entry(for: record, symbolicator: symbolicator, sessionID: session?.id)
+            var details = CrashDiagnosticMapper.details(for: record, symbolicator: symbolicator)
+            details.sessionMatch = session?.match.rawValue
+            entries.append(entry)
+            artifacts.append(CrashArtifacts(id: entry.id, details: details, diagnosticJSON: record.diagnosticJSON))
+        }
+        if !entries.isEmpty {
+            crashes.record(entries, artifacts: artifacts)
         }
         if !result.fingerprints.isEmpty {
             fingerprints.insert(result.fingerprints)
         }
-        return result.entries
+        return entries
     }
 
     /// The decision itself, apart from any storage.
@@ -98,9 +137,20 @@ struct CrashDiagnosticIngestor: Sendable {
         seen: Set<String>,
         symbolicator: CrashFrameSymbolicating
     ) -> (entries: [CrashLogEntry], fingerprints: [String]) {
+        let result = newRecords(from: records, stored: stored, seen: seen)
+        return (result.records.map { CrashDiagnosticMapper.entry(for: $0, symbolicator: symbolicator) },
+                result.fingerprints)
+    }
+
+    /// The decision, as the diagnostics to keep rather than the entries made from them.
+    static func newRecords(
+        from records: [CrashDiagnosticRecord],
+        stored: [CrashLogEntry],
+        seen: Set<String>
+    ) -> (records: [CrashDiagnosticRecord], fingerprints: [String]) {
         var seen = seen
         var unmatched = stored.filter { $0.source == .exceptionHandler && !seen.contains(claimKey(for: $0)) }
-        var entries: [CrashLogEntry] = []
+        var kept: [CrashDiagnosticRecord] = []
         var fingerprints: [String] = []
 
         /// Named diagnostics first, so a handler entry is claimed by the diagnostic that names it
@@ -115,9 +165,9 @@ struct CrashDiagnosticIngestor: Sendable {
                 fingerprints.append(claimKey(for: unmatched.remove(at: index)))
                 continue
             }
-            entries.append(CrashDiagnosticMapper.entry(for: record, symbolicator: symbolicator))
+            kept.append(record)
         }
-        return (entries, fingerprints)
+        return (kept, fingerprints)
     }
 
     /// What is remembered once a diagnostic has matched a handler entry. Kept in the fingerprint

@@ -55,6 +55,7 @@ import Foundation
 /// - ``osVersion``
 /// - ``deviceModel``
 /// - ``source``
+/// - ``sessionID``
 ///
 /// ### Computed Properties
 /// - ``formattedTimestamp``
@@ -94,6 +95,10 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
     /// path that writes entries without one.
     public let source: CrashLogSource
 
+    /// The ``SessionJournal`` session the crash happened in, whose console output and network
+    /// traffic go into the crash's export — or `nil` if it is not known.
+    public let sessionID: UUID?
+
     /// Creates a new crash log entry.
     public init(
         id: UUID = UUID(),
@@ -105,7 +110,8 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         buildNumber: String,
         osVersion: String,
         deviceModel: String,
-        source: CrashLogSource = .exceptionHandler
+        source: CrashLogSource = .exceptionHandler,
+        sessionID: UUID? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -117,10 +123,11 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         self.osVersion = osVersion
         self.deviceModel = deviceModel
         self.source = source
+        self.sessionID = sessionID
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, timestamp, name, reason, stackTrace, appVersion, buildNumber, osVersion, deviceModel, source
+        case id, timestamp, name, reason, stackTrace, appVersion, buildNumber, osVersion, deviceModel, source, sessionID
     }
 
     /// Decodes an entry, defaulting ``source`` when it is absent.
@@ -136,6 +143,7 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         osVersion = try container.decode(String.self, forKey: .osVersion)
         deviceModel = try container.decode(String.self, forKey: .deviceModel)
         source = try container.decodeIfPresent(CrashLogSource.self, forKey: .source) ?? .exceptionHandler
+        sessionID = try container.decodeIfPresent(UUID.self, forKey: .sessionID)
     }
 
     /// Formatted timestamp for display.
