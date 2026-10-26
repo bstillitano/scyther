@@ -90,8 +90,8 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
 
     /// How the crash was captured.
     ///
-    /// Crashes stored before this property existed decode as ``CrashLogSource/exceptionHandler``,
-    /// which is the only way they could have been captured.
+    /// An entry stored without a source decodes as ``CrashLogSource/exceptionHandler``, the only
+    /// path that writes entries without one.
     public let source: CrashLogSource
 
     /// Creates a new crash log entry.
@@ -123,7 +123,7 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         case id, timestamp, name, reason, stackTrace, appVersion, buildNumber, osVersion, deviceModel, source
     }
 
-    /// Decodes an entry, defaulting ``source`` for entries stored before it existed.
+    /// Decodes an entry, defaulting ``source`` when it is absent.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)

@@ -199,8 +199,8 @@ public enum Scyther {
     ///
     /// Only the first call that is allowed to start Scyther does anything. Every later call returns
     /// immediately, whatever `allowProductionBuilds` it passes, so it is safe to call from more than
-    /// one place. Running the setup twice was not harmless: several subsystems registered their
-    /// notification observers a second time.
+    /// one place. The setup must run once: several subsystems register notification observers, and
+    /// a second run would register them again.
     ///
     /// A call refused on an App Store build does not count as the first call: ``isStarted`` stays
     /// `false`, and a later call with `allowProductionBuilds: true` still starts Scyther.
