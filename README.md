@@ -397,6 +397,8 @@ the top of the screen.
 
 ### Swift Package Manager
 
+Swift Package Manager is the only supported integration. CocoaPods support has been removed.
+
 Add Scyther to your `Package.swift`:
 
 ```swift

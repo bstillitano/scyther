@@ -119,21 +119,3 @@ extension Bundle {
         }
     }
 }
-
-/// CocoaPods-specific extensions for Bundle.
-///
-/// This extension provides compatibility when using Scyther via CocoaPods by
-/// adding a `module` property that references the Scyther bundle.
-#if !SWIFT_PACKAGE
-    extension Bundle {
-        /// Returns the Scyther bundle when using CocoaPods.
-        ///
-        /// This static property provides access to the Scyther resource bundle
-        /// when the framework is integrated via CocoaPods rather than Swift Package Manager.
-        ///
-        /// - Returns: The Scyther bundle
-        static var module: Bundle {
-            Bundle(identifier: "org.cocoapods.Scyther")!
-        }
-    }
-#endif
