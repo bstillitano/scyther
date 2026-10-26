@@ -15,6 +15,7 @@ import SwiftUI
 ///
 /// ## Features
 /// - Exception name and reason display
+/// - Where the crash was captured: the exception handler, or MetricKit on a later launch
 /// - Device and app environment details
 /// - Searchable stack trace with text highlighting
 /// - Copy to clipboard functionality
@@ -50,6 +51,7 @@ struct CrashDetailsView: View {
         List {
             Section(localized("Exception")) {
                 LabeledContent(localized("Name"), value: viewModel.crash.name)
+                LabeledContent(localized("Source"), value: viewModel.crash.source.displayName)
                 if let reason = viewModel.crash.reason {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(localized("Reason"))

@@ -583,5 +583,50 @@
     "ko": "지원되지 않음(%@)",
     "ru": "Не поддерживается (%@)",
     "ar": "غير مدعوم (%@)"
+  },
+  "Source": {
+    "comment": "Label in crash details for how the crash was captured: the exception handler or MetricKit",
+    "fr": "Source",
+    "de": "Quelle",
+    "es": "Origen",
+    "it": "Origine",
+    "pt-BR": "Origem",
+    "nl": "Bron",
+    "ja": "取得元",
+    "zh-Hans": "来源",
+    "zh-Hant": "來源",
+    "ko": "출처",
+    "ru": "Источник",
+    "ar": "المصدر"
+  },
+  "Exception Handler": {
+    "comment": "Crash source: captured by the uncaught exception handler as the app crashed",
+    "fr": "Gestionnaire d'exceptions",
+    "de": "Ausnahme-Handler",
+    "es": "Controlador de excepciones",
+    "it": "Gestore delle eccezioni",
+    "pt-BR": "Manipulador de exceções",
+    "nl": "Uitzonderingshandler",
+    "ja": "例外ハンドラ",
+    "zh-Hans": "异常处理程序",
+    "zh-Hant": "例外處理常式",
+    "ko": "예외 처리기",
+    "ru": "Обработчик исключений",
+    "ar": "معالج الاستثناءات"
+  },
+  "MetricKit": {
+    "comment": "Crash source: delivered by Apple's MetricKit framework on a later launch. Product name, do not translate",
+    "fr": "MetricKit",
+    "de": "MetricKit",
+    "es": "MetricKit",
+    "it": "MetricKit",
+    "pt-BR": "MetricKit",
+    "nl": "MetricKit",
+    "ja": "MetricKit",
+    "zh-Hans": "MetricKit",
+    "zh-Hant": "MetricKit",
+    "ko": "MetricKit",
+    "ru": "MetricKit",
+    "ar": "MetricKit"
   }
 }

@@ -9,12 +9,17 @@
 import Foundation
 import UIKit
 
-/// A singleton that captures uncaught exceptions and stores them for viewing.
+/// A singleton that captures crashes and stores them for viewing.
 ///
-/// `CrashLogger` uses `NSSetUncaughtExceptionHandler` to intercept Objective-C
-/// and Swift exceptions before the app terminates. Captured crashes are persisted
-/// to `UserDefaults.scyther`, Scyther's private preferences suite, and can be viewed on
-/// subsequent app launches.
+/// `CrashLogger` captures crashes two ways:
+///
+/// - `NSSetUncaughtExceptionHandler` intercepts Objective-C exceptions before the app terminates.
+/// - `CrashDiagnosticsCollector` ingests MetricKit's crash diagnostics on the next launch, which
+///   covers every other kind of crash: Swift traps such as a force unwrap of `nil`,
+///   `EXC_BAD_ACCESS`, and aborts from other runtimes.
+///
+/// Both are persisted to `UserDefaults.scyther`, Scyther's private preferences suite, and can be
+/// viewed on subsequent app launches. ``CrashLogEntry/source`` records which path captured each.
 ///
 /// ## Features
 /// - Automatic exception interception
@@ -49,9 +54,17 @@ import UIKit
 /// ```
 ///
 /// ## Limitations
-/// - Only captures `NSException`-based crashes
-/// - Pure Swift `fatalError()` or `preconditionFailure()` may not be captured
-/// - Stack traces contain raw memory addresses (not symbolicated)
+/// - The exception handler only sees `NSException`-based crashes. Everything else — a Swift
+///   `fatalError()`, a force unwrap, `EXC_BAD_ACCESS` — arrives through MetricKit instead, and
+///   only on the **next launch**, when the system delivers the diagnostic.
+/// - MetricKit delivers diagnostics on a **physical device** only. The Simulator never does, so on
+///   the Simulator only `NSException` crashes are captured.
+/// - A crash that happens with the **debugger attached** produces no MetricKit diagnostic: the
+///   debugger stops the process before the system can record one.
+/// - MetricKit stack traces are best-effort symbolicated against the images loaded now. Frames in
+///   a stripped binary, or from a build other than the one running, show a binary and offset only.
+/// - A MetricKit entry is stamped with the end of its payload's window, not the moment of the
+///   crash, which MetricKit does not report.
 ///
 /// ## Topics
 ///
@@ -66,7 +79,7 @@ import UIKit
 ///
 /// ### Notifications
 /// - ``didRecordCrashNotification``
-public final class CrashLogger: @unchecked Sendable {
+public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     /// Shared instance.
     public static let instance = CrashLogger()
 
@@ -158,6 +171,22 @@ public final class CrashLogger: @unchecked Sendable {
 
         // Save immediately - we're about to crash
         CrashLogger.instance.save(crashes)
+    }
+
+    /// Stores entries from another source — MetricKit — alongside the existing crashes.
+    ///
+    /// Entries are kept newest first and the store keeps its cap of 50. A MetricKit entry for a
+    /// crash from a few launches ago may be older than crashes already stored, so the list is
+    /// sorted rather than prepended to. Posts ``didRecordCrashNotification`` on the main queue.
+    ///
+    /// - Parameter entries: The entries to add.
+    func record(_ entries: [CrashLogEntry]) {
+        guard !entries.isEmpty else { return }
+        let crashes = (load() + entries).sorted { $0.timestamp > $1.timestamp }
+        save(Array(crashes.prefix(CrashLogger.maxCrashes)))
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: CrashLogger.didRecordCrashNotification, object: nil)
+        }
     }
 
     /// Clears all stored crash logs.

@@ -82,7 +82,7 @@ A comprehensive iOS debugging toolkit that helps you cut through bugs in your iO
 - **Custom Locations**: Set any coordinate manually
 - **Route Simulation**: Simulate movement along predefined routes
 - **Deep Link Tester**: Test custom URL schemes and universal links with QR scanner
-- **Crash Logging**: Capture and view uncaught exceptions on subsequent app launches
+- **Crash Logging**: Capture and view crashes on subsequent app launches — uncaught exceptions as they happen, and Swift traps, `EXC_BAD_ACCESS` and aborts through MetricKit on device
 
 ### Notifications
 - **Push Notification Tester**: Schedule local test notifications
@@ -1363,16 +1363,37 @@ Scyther.console.clear()
 
 ### Crash Logging
 
-Capture uncaught exceptions and view them on subsequent app launches. This is useful for debugging crashes that occur during development and testing.
+Capture crashes and view them on subsequent app launches. This is useful for debugging crashes that occur during development and testing.
 
 #### How It Works
 
-Scyther uses `NSSetUncaughtExceptionHandler` to intercept Objective-C and Swift exceptions before the app terminates. When a crash occurs:
+Scyther captures crashes two ways, and each entry's details show which one recorded it.
+
+**Exception handler.** `NSSetUncaughtExceptionHandler` intercepts Objective-C exceptions before
+the app terminates. When one is raised:
 
 1. Exception details are captured (name, reason, stack trace)
 2. Device and app information is recorded
 3. Data is saved to UserDefaults immediately
 4. On next launch, the crash is visible in Scyther's Crash Logs viewer
+
+**MetricKit.** Everything else — a Swift force unwrap of `nil` or `fatalError()`
+(`EXC_BREAKPOINT`), `EXC_BAD_ACCESS`, an abort from another runtime — never reaches an exception
+handler. Scyther subscribes to MetricKit, which gets a crash diagnostic from the OS for every
+crash type and delivers it on the **next launch**. Each one becomes a crash log entry:
+
+- **Name**: the Mach exception and signal, such as `EXC_BREAKPOINT (SIGTRAP)`, or the
+  Objective-C exception's name where MetricKit reports one (iOS 17 and later)
+- **Reason**: the exception's message, or the system's termination reason
+- **Stack trace**: the crashed thread, as `binary + offset` per frame, with the function name
+  added wherever the running build can name it (an unstripped build of the same version)
+- **Timestamp**: the end of the window MetricKit's payload covers; it does not report the moment
+  of the crash itself
+
+An `NSException` crash is reported by both paths, so the MetricKit copy is dropped when the
+exception handler already recorded it, and no diagnostic is ever ingested twice across launches.
+Scyther installs no signal or Mach exception handlers of its own, so it does not compete with
+Crashlytics or Sentry for them, and MetricKit takes any number of subscribers.
 
 #### ⚠️ Important: Initialization Order
 
@@ -1403,6 +1424,8 @@ struct MyApp: App {
 }
 ```
 
+This order matters for the exception handler only. MetricKit capture works whatever the order.
+
 **Why this order?**
 - Scyther saves the existing handler (e.g., Crashlytics) when it starts
 - When a crash occurs, Scyther logs it locally, then forwards to Crashlytics
@@ -1427,6 +1450,7 @@ Scyther.crashes.clear()
 
 Each crash log includes:
 - Exception name and reason
+- Source: the exception handler, or MetricKit
 - Full stack trace (searchable with highlighting)
 - App version and build number
 - iOS version and device model
@@ -1436,7 +1460,10 @@ The stack trace is searchable - use the search bar to filter frames and find spe
 
 #### Testing Crash Capture
 
-In debug builds, you can trigger a test crash:
+On a physical device, Xcode's **Debug ▸ Simulate MetricKit Payloads** delivers a sample crash
+diagnostic, which appears in the crash list as a MetricKit entry.
+
+In debug builds, you can trigger a test exception:
 
 ```swift
 #if DEBUG
@@ -1446,8 +1473,10 @@ Scyther.crashes.triggerTestCrash()
 
 #### Limitations
 
-- **Swift errors**: Only captures `NSException`-based crashes. Pure Swift `fatalError()` or `preconditionFailure()` may not be captured.
-- **Symbolication**: Stack traces contain memory addresses. Use Xcode's crash log tools for symbolicated traces.
+- **Next launch only**: Swift traps and other non-exception crashes appear on the launch after the crash, when MetricKit delivers the diagnostic.
+- **Device only**: The Simulator never delivers MetricKit payloads, so on the Simulator only `NSException` crashes are captured.
+- **No debugger**: A crash that happens with the debugger attached produces no MetricKit diagnostic. Launch from the home screen to test one.
+- **Symbolication**: MetricKit frames are named only when the running build carries symbols for them; a stripped release build shows `binary + offset`. Use `atos` with the dSYM for those, or Xcode's crash log tools.
 - **Storage**: Up to 50 crashes are stored (oldest are removed automatically).
 
 ---

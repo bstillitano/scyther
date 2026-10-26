@@ -985,8 +985,11 @@ public final class DeepLinks: Sendable {
 
 /// Captures and displays crash logs.
 ///
-/// The `Crashes` subsystem uses `NSSetUncaughtExceptionHandler` to capture
-/// uncaught exceptions and store them for viewing on subsequent app launches.
+/// The `Crashes` subsystem captures crashes two ways and stores them for viewing on subsequent app
+/// launches: `NSSetUncaughtExceptionHandler` catches uncaught Objective-C exceptions as they
+/// happen, and MetricKit delivers a diagnostic for every other kind of crash — Swift traps,
+/// `EXC_BAD_ACCESS`, aborts — on the next launch. MetricKit diagnostics arrive on a physical device
+/// only, and not for a crash that happened with the debugger attached.
 ///
 /// ## Viewing Crash Logs
 ///
@@ -1013,6 +1016,7 @@ public final class Crashes: Sendable {
 
     internal func startCapturing() {
         CrashLogger.instance.start()
+        CrashDiagnosticsCollector.shared.start()
     }
 
     /// Clears all stored crash logs.

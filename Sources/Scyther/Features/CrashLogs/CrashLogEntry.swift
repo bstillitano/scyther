@@ -21,6 +21,7 @@ import Foundation
 /// - App version and build number at time of crash
 /// - iOS version and device model
 /// - Precise timestamp
+/// - Where it was captured: the exception handler, or MetricKit on a later launch
 ///
 /// ## Usage
 /// ```swift
@@ -53,6 +54,7 @@ import Foundation
 /// - ``buildNumber``
 /// - ``osVersion``
 /// - ``deviceModel``
+/// - ``source``
 ///
 /// ### Computed Properties
 /// - ``formattedTimestamp``
@@ -86,6 +88,12 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
     /// Device model when crash occurred.
     public let deviceModel: String
 
+    /// How the crash was captured.
+    ///
+    /// Crashes stored before this property existed decode as ``CrashLogSource/exceptionHandler``,
+    /// which is the only way they could have been captured.
+    public let source: CrashLogSource
+
     /// Creates a new crash log entry.
     public init(
         id: UUID = UUID(),
@@ -96,7 +104,8 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         appVersion: String,
         buildNumber: String,
         osVersion: String,
-        deviceModel: String
+        deviceModel: String,
+        source: CrashLogSource = .exceptionHandler
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -107,6 +116,26 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         self.buildNumber = buildNumber
         self.osVersion = osVersion
         self.deviceModel = deviceModel
+        self.source = source
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, timestamp, name, reason, stackTrace, appVersion, buildNumber, osVersion, deviceModel, source
+    }
+
+    /// Decodes an entry, defaulting ``source`` for entries stored before it existed.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        name = try container.decode(String.self, forKey: .name)
+        reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        stackTrace = try container.decode([String].self, forKey: .stackTrace)
+        appVersion = try container.decode(String.self, forKey: .appVersion)
+        buildNumber = try container.decode(String.self, forKey: .buildNumber)
+        osVersion = try container.decode(String.self, forKey: .osVersion)
+        deviceModel = try container.decode(String.self, forKey: .deviceModel)
+        source = try container.decodeIfPresent(CrashLogSource.self, forKey: .source) ?? .exceptionHandler
     }
 
     /// Formatted timestamp for display.
@@ -131,6 +160,7 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         Date: \(formattedTimestamp)
         Exception: \(name)
         Reason: \(reason ?? "Unknown")
+        Source: \(source.rawValue)
 
         Device: \(deviceModel)
         OS Version: \(osVersion)
