@@ -135,7 +135,7 @@ struct CrashDiagnosticRecord: Equatable, Sendable {
         ]
         for thread in threads {
             lines.append(thread.isAttributed ? "thread*" : "thread")
-            lines += thread.frames.map { "\($0.binaryUUID ?? "-") \($0.resolvedOffset)" }
+            lines += thread.frames.map { "\($0.binaryUUID ?? "-") \($0.resolvedOffset.map(String.init) ?? "-")" }
         }
         let digest = SHA256.hash(data: Data(lines.joined(separator: "\n").utf8))
         return digest.map { String(format: "%02x", $0) }.joined()

@@ -14,7 +14,8 @@ import Foundation
 ///   and later), and otherwise the Mach exception and signal, such as `EXC_BREAKPOINT (SIGTRAP)`.
 /// - ``CrashLogEntry/reason`` is the exception's message, or the system's termination reason.
 /// - ``CrashLogEntry/stackTrace`` is the crashed thread, top of the stack first, one frame per line
-///   as `binary + offset`, followed by the symbol when this process can name it.
+///   as `binary + offset`, followed by the symbol when this process can name it. A frame whose
+///   offset cannot be recovered reads `binary + ?`.
 /// - ``CrashLogEntry/timestamp`` is the end of the payload's window. MetricKit does not report the
 ///   moment of the crash itself.
 enum CrashDiagnosticMapper {
@@ -69,9 +70,11 @@ enum CrashDiagnosticMapper {
 
     /// Formats one frame.
     private static func line(for frame: CrashDiagnosticJSONReader.Frame, symbolicator: CrashFrameSymbolicating) -> String {
-        let offset = frame.resolvedOffset
-        let uuid = frame.binaryUUID.flatMap(UUID.init(uuidString:))
         let binary = frame.binaryName ?? frame.binaryUUID ?? "???"
+        guard let offset = frame.resolvedOffset else {
+            return "\(binary) + ?"
+        }
+        let uuid = frame.binaryUUID.flatMap(UUID.init(uuidString:))
         let symbol = uuid.flatMap { symbolicator.symbol(binaryUUID: $0, offset: offset) }
         return symbol.map { "\(binary) + \(offset) (\($0))" } ?? "\(binary) + \(offset)"
     }

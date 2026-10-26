@@ -20,12 +20,22 @@ protocol CrashFrameSymbolicating: Sendable {
 ///
 /// A MetricKit crash happened in an earlier launch, but if the same build is running now, its
 /// images have the same UUIDs and the same layout. Adding the frame's offset to where the image is
-/// loaded *now* gives an address `dladdr` can name. That works for any binary that still carries
-/// its symbol table: the app in a debug build, and the system libraries. A stripped release build
-/// gives nothing, and the frame is shown as a binary and offset alone.
+/// loaded *now* gives an address `dladdr` can name.
+///
+/// `dladdr` names the nearest symbol *before* an address, from whatever symbols the image still
+/// carries, and in a stripped binary that can be an unrelated exported function a long way back —
+/// or the Mach-O header itself. A wrong name is worse than none, so a match is discarded when it
+/// is the header, or further from the address than ``maximumSymbolDistance``. That keeps the names
+/// that are almost certainly right — an unstripped debug build, the exported functions of a system
+/// library — and drops the guesses. Names are still best-effort: a stripped private function
+/// that happens to sit just after an exported one can borrow its name.
 ///
 /// Swift symbols are demangled.
 struct LoadedImageSymbolicator: CrashFrameSymbolicating {
+    /// The furthest an address may be from the symbol `dladdr` names for it and still be taken as
+    /// inside that symbol. Very few functions are longer.
+    static let maximumSymbolDistance: UInt = 64 * 1024
+
     /// Where each loaded image's Mach-O header — the start of its `__TEXT` segment — is, by UUID.
     private let headers: [UUID: UInt]
 
@@ -44,11 +54,13 @@ struct LoadedImageSymbolicator: CrashFrameSymbolicating {
               let address = UnsafeRawPointer(bitPattern: base &+ UInt(offset)) else { return nil }
 
         var info = Dl_info()
-        guard dladdr(address, &info) != 0, let name = info.dli_sname else { return nil }
+        guard dladdr(address, &info) != 0, let name = info.dli_sname,
+              info.dli_saddr != info.dli_fbase else { return nil }
 
-        let symbol = Self.demangle(String(cString: name))
         let distance = UInt(bitPattern: address) &- UInt(bitPattern: info.dli_saddr)
-        return "\(symbol) + \(distance)"
+        guard distance <= Self.maximumSymbolDistance else { return nil }
+
+        return "\(Self.demangle(String(cString: name))) + \(distance)"
     }
 
     /// Reads `LC_UUID` from a 64-bit Mach-O header.

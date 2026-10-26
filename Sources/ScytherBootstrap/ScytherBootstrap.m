@@ -30,7 +30,7 @@ static NSString *const ScytherNoSwizzleMarker = @"do_not_swizzle";
 /// The interceptor class once it has been found, stored as an address so it can be atomic.
 static _Atomic(uintptr_t) ScytherInterceptorClassAddress = 0;
 
-/// Set once the constructor has installed every hook.
+/// Set once the constructor has installed the configuration getter hooks.
 static atomic_bool ScytherHooksInstalled = false;
 
 /// The original implementations. Written once by the constructor, before any host code can create
@@ -154,10 +154,13 @@ static void ScytherBootstrapInstall(void) {
     ScytherOriginalBackground = ScytherReplace(metaclass, @selector(backgroundSessionConfigurationWithIdentifier:), (IMP)ScytherBackground);
     ScytherOriginalInit = ScytherReplace(configurationClass, @selector(init), (IMP)ScytherInit);
 
+    // `-init` is left out on purpose. It is deprecated, and on current releases it returns a
+    // configuration with no protocol list that a session cannot even be built from, so its hook is
+    // best-effort. If a release stops implementing it on this class, the getters that matter are
+    // still hooked, and Scyther must not report the bootstrap as missing.
     bool installed = ScytherOriginalDefault != NULL
         && ScytherOriginalEphemeral != NULL
-        && ScytherOriginalBackground != NULL
-        && ScytherOriginalInit != NULL;
+        && ScytherOriginalBackground != NULL;
     atomic_store(&ScytherHooksInstalled, installed);
 }
 

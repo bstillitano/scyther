@@ -1476,7 +1476,7 @@ Scyther.crashes.triggerTestCrash()
 - **Next launch only**: Swift traps and other non-exception crashes appear on the launch after the crash, when MetricKit delivers the diagnostic.
 - **Device only**: The Simulator never delivers MetricKit payloads, so on the Simulator only `NSException` crashes are captured.
 - **No debugger**: A crash that happens with the debugger attached produces no MetricKit diagnostic. Launch from the home screen to test one.
-- **Symbolication**: MetricKit frames are named only when the running build carries symbols for them; a stripped release build shows `binary + offset`. Use `atos` with the dSYM for those, or Xcode's crash log tools.
+- **Symbolication**: MetricKit frames are named only when the running build carries symbols for them, and names are best-effort: a guess too far from any symbol is dropped, so a stripped release build mostly shows `binary + offset`. Use `atos` with the dSYM for those, or Xcode's crash log tools.
 - **Storage**: Up to 50 crashes are stored (oldest are removed automatically).
 
 ---

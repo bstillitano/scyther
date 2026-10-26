@@ -105,6 +105,15 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     /// Notification posted when a new crash is recorded.
     public static let didRecordCrashNotification = Notification.Name("CrashLoggerDidRecordCrash")
 
+    /// Serialises every read-modify-write of the stored crashes.
+    ///
+    /// The exception handler records on whichever thread is crashing, MetricKit entries arrive on
+    /// the collector's queue, and `clear()` runs on the main thread. Without the lock, one writer
+    /// saving a list it loaded before another's write would lose that write — a crash recorded as
+    /// the app died, or a clear that undoes itself. Recursive, because an exception raised on a
+    /// thread that already holds it must still be able to record.
+    private let storeLock = NSRecursiveLock()
+
     private init() {}
 
     /// All stored crash logs, newest first.
@@ -158,6 +167,9 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
             deviceModel: cachedDeviceModel
         )
 
+        CrashLogger.instance.storeLock.lock()
+        defer { CrashLogger.instance.storeLock.unlock() }
+
         // Load existing crashes
         var crashes = CrashLogger.instance.load()
 
@@ -182,8 +194,10 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     /// - Parameter entries: The entries to add.
     func record(_ entries: [CrashLogEntry]) {
         guard !entries.isEmpty else { return }
+        storeLock.lock()
         let crashes = (load() + entries).sorted { $0.timestamp > $1.timestamp }
         save(Array(crashes.prefix(CrashLogger.maxCrashes)))
+        storeLock.unlock()
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: CrashLogger.didRecordCrashNotification, object: nil)
         }
@@ -191,7 +205,9 @@ public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
 
     /// Clears all stored crash logs.
     public func clear() {
+        storeLock.lock()
         UserDefaults.scyther.removeObject(forKey: CrashLogger.storageKey)
+        storeLock.unlock()
         NotificationCenter.default.post(name: CrashLogger.didRecordCrashNotification, object: nil)
     }
 

@@ -20,7 +20,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///   unintercepted.
 /// - It lets a debug build assert that the constructor actually ran.
 ///
-/// - Returns: `true` once the hooks are in place.
+/// - Returns: `true` once the `default`, `ephemeral` and `background` hooks are in place. The
+///   `-init` hook is best-effort and does not count.
 bool ScytherBootstrapIsInstalled(void);
 
 NS_ASSUME_NONNULL_END

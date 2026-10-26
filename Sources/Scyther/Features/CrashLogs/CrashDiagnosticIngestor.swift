@@ -39,7 +39,9 @@ protocol CrashDiagnosticFingerprintStoring: Sendable {
 ///   and either has the diagnostic's exception name (iOS 17 and later, where MetricKit reports
 ///   one) or, where MetricKit reports no name, the diagnostic is a `SIGABRT` — which is how an
 ///   uncaught exception ends. Each handler entry accounts for one diagnostic at most, so a second
-///   abort in the same window is still kept.
+///   abort in the same window is still kept. The claim is remembered alongside the fingerprints,
+///   so it holds across launches too: an entry claimed by one launch's diagnostic cannot be
+///   claimed again by a later one.
 struct CrashDiagnosticIngestor: Sendable {
     /// Where crash entries are stored.
     let crashes: CrashLogRepository
@@ -88,7 +90,8 @@ struct CrashDiagnosticIngestor: Sendable {
     ///   - stored: The crash entries already stored.
     ///   - seen: The fingerprints of diagnostics already ingested.
     ///   - symbolicator: Names frames for the stack traces.
-    /// - Returns: The entries to store, and the fingerprints of every diagnostic looked at.
+    /// - Returns: The entries to store, and what to remember: the fingerprint of every diagnostic
+    ///   looked at, and a ``claimKey(for:)`` for every handler entry a diagnostic matched.
     static func newEntries(
         from records: [CrashDiagnosticRecord],
         stored: [CrashLogEntry],
@@ -96,7 +99,7 @@ struct CrashDiagnosticIngestor: Sendable {
         symbolicator: CrashFrameSymbolicating
     ) -> (entries: [CrashLogEntry], fingerprints: [String]) {
         var seen = seen
-        var unmatched = stored.filter { $0.source == .exceptionHandler }
+        var unmatched = stored.filter { $0.source == .exceptionHandler && !seen.contains(claimKey(for: $0)) }
         var entries: [CrashLogEntry] = []
         var fingerprints: [String] = []
 
@@ -109,12 +112,18 @@ struct CrashDiagnosticIngestor: Sendable {
             fingerprints.append(record.fingerprint)
 
             if let index = unmatched.firstIndex(where: { matches($0, record) }) {
-                unmatched.remove(at: index)
+                fingerprints.append(claimKey(for: unmatched.remove(at: index)))
                 continue
             }
             entries.append(CrashDiagnosticMapper.entry(for: record, symbolicator: symbolicator))
         }
         return (entries, fingerprints)
+    }
+
+    /// What is remembered once a diagnostic has matched a handler entry. Kept in the fingerprint
+    /// store, whose values never collide with it: a fingerprint is a hex digest.
+    static func claimKey(for entry: CrashLogEntry) -> String {
+        "claimed:\(entry.id.uuidString)"
     }
 
     /// Whether a handler entry is the same crash as a diagnostic.

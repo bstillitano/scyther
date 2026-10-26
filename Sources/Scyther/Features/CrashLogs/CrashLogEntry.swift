@@ -160,7 +160,7 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         Date: \(formattedTimestamp)
         Exception: \(name)
         Reason: \(reason ?? "Unknown")
-        Source: \(source.rawValue)
+        Source: \(source.reportName)
 
         Device: \(deviceModel)
         OS Version: \(osVersion)

@@ -24,6 +24,15 @@ public enum CrashLogSource: String, Codable, Sendable, CaseIterable {
     /// Delivered by MetricKit on a later launch.
     case metricKit
 
+    /// The name written into ``CrashLogEntry/fullReport``. English, like the rest of the report,
+    /// which is meant to be pasted into a bug tracker rather than read in the menu.
+    var reportName: String {
+        switch self {
+        case .exceptionHandler: return "Exception Handler"
+        case .metricKit: return "MetricKit"
+        }
+    }
+
     /// The name shown in the crash details.
     var displayName: String {
         switch self {

@@ -43,6 +43,12 @@ final class CrashDiagnosticsCollector: NSObject, MXMetricManagerSubscriber, @unc
     /// Whether ``start()`` has run. Read and written on the main actor only.
     private var isStarted = false
 
+    /// Carries MetricKit's payloads onto ``queue``. They are immutable once delivered, but not
+    /// marked `Sendable`.
+    private struct Delivery: @unchecked Sendable {
+        let payloads: [MXDiagnosticPayload]
+    }
+
     private override init() {
         super.init()
     }
@@ -63,18 +69,25 @@ final class CrashDiagnosticsCollector: NSObject, MXMetricManagerSubscriber, @unc
         ingest(payloads)
     }
 
-    /// Converts the payloads' crash diagnostics and hands them to the ingestor on ``queue``.
+    /// Hands the payloads to ``queue``, where their crash diagnostics are converted and ingested.
+    ///
+    /// The conversion happens on the queue too, not here: ``start()`` runs on the main thread
+    /// during app launch, and reading a diagnostic — its JSON, every frame, the fingerprint — is
+    /// not work to put in front of the first frame.
     private func ingest(_ payloads: [MXDiagnosticPayload]) {
-        let records = payloads.flatMap { payload in
-            (payload.crashDiagnostics ?? []).compactMap {
-                CrashDiagnosticRecord(diagnostic: $0,
-                                      timeStampBegin: payload.timeStampBegin,
-                                      timeStampEnd: payload.timeStampEnd)
-            }
-        }
-        guard !records.isEmpty else { return }
+        guard !payloads.isEmpty else { return }
+        let delivery = Delivery(payloads: payloads)
         queue.async {
-            self.ingestor.ingest(records)
+            let records = delivery.payloads.flatMap { payload in
+                (payload.crashDiagnostics ?? []).compactMap {
+                    CrashDiagnosticRecord(diagnostic: $0,
+                                          timeStampBegin: payload.timeStampBegin,
+                                          timeStampEnd: payload.timeStampEnd)
+                }
+            }
+            if !records.isEmpty {
+                self.ingestor.ingest(records)
+            }
         }
     }
 }

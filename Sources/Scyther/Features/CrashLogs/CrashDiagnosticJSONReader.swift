@@ -54,13 +54,13 @@ enum CrashDiagnosticJSONReader {
         /// `offsetIntoBinaryTextSegment`, alongside the frame's absolute `address`. A load address
         /// on arm64 is never below 4 GB, the size of `__PAGEZERO`, and a real offset into one
         /// binary always is, so a value that large is taken as the load address and the offset
-        /// recovered from the two.
-        var resolvedOffset: UInt64 {
-            let field = offsetIntoBinaryTextSegment ?? 0
-            if let address, field >= 0x1_0000_0000, address >= field {
-                return address - field
-            }
-            return field
+        /// recovered from the two. A value that large with no usable `address` beside it cannot be
+        /// turned into an offset, and gives `nil`, as does a frame with no offset at all.
+        var resolvedOffset: UInt64? {
+            guard let field = offsetIntoBinaryTextSegment else { return nil }
+            guard field >= 0x1_0000_0000 else { return field }
+            guard let address, address >= field else { return nil }
+            return address - field
         }
     }
 
@@ -112,6 +112,10 @@ enum CrashDiagnosticJSONReader {
         var threads: [Thread] = []
         var values: [String: String] = [:]
 
+        /// The thread whose object is open, if any. Tracked rather than searched for, because
+        /// searching the stack for it on every frame would make reading quadratic in its depth.
+        var activeThread: Int?
+
         init(bytes: [UInt8]) {
             self.bytes = bytes
         }
@@ -130,7 +134,10 @@ enum CrashDiagnosticJSONReader {
                     stack.append(.array(owner: currentKey))
                 case UInt8(ascii: "}"), UInt8(ascii: "]"):
                     position += 1
-                    guard stack.popLast() != nil else { return nil }
+                    guard let closed = stack.popLast() else { return nil }
+                    if case .object(.thread, _, _) = closed {
+                        activeThread = nil
+                    }
                     finishValue()
                 case UInt8(ascii: ","), UInt8(ascii: ":"):
                     position += 1
@@ -169,14 +176,6 @@ enum CrashDiagnosticJSONReader {
             }
         }
 
-        /// The thread the reader is inside, if any.
-        private var currentThread: Int? {
-            for container in stack.reversed() {
-                if case .object(.thread(let index), _, _) = container { return index }
-            }
-            return nil
-        }
-
         private mutating func openObject() {
             var role = Role.other
             var path: String?
@@ -189,7 +188,8 @@ enum CrashDiagnosticJSONReader {
                 if owner == "callStacks" {
                     threads.append(Thread())
                     role = .thread(threads.count - 1)
-                } else if owner == "callStackRootFrames" || owner == "subFrames", let thread = currentThread {
+                    activeThread = threads.count - 1
+                } else if owner == "callStackRootFrames" || owner == "subFrames", let thread = activeThread {
                     threads[thread].frames.append(Frame())
                     role = .frame(thread: thread, index: threads[thread].frames.count - 1)
                 }
@@ -286,10 +286,21 @@ enum CrashDiagnosticJSONReader {
                     case UInt8(ascii: "b"): scalars.append("\u{08}")
                     case UInt8(ascii: "f"): scalars.append("\u{0C}")
                     case UInt8(ascii: "u"):
-                        guard position + 4 <= bytes.count,
-                              let code = UInt32(String(decoding: bytes[position..<position + 4], as: UTF8.self), radix: 16)
-                        else { return nil }
-                        position += 4
+                        guard let code = readHexEscape() else { return nil }
+                        /// A character outside the Basic Multilingual Plane is written as a UTF-16
+                        /// surrogate pair, two escapes in a row, which only mean anything together.
+                        if (0xD800...0xDBFF).contains(code),
+                           position + 6 <= bytes.count,
+                           bytes[position] == UInt8(ascii: "\\"), bytes[position + 1] == UInt8(ascii: "u") {
+                            let resume = position
+                            position += 2
+                            if let low = readHexEscape(), (0xDC00...0xDFFF).contains(low) {
+                                let combined = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00)
+                                scalars.append(Unicode.Scalar(combined) ?? "\u{FFFD}")
+                                continue
+                            }
+                            position = resume
+                        }
                         scalars.append(Unicode.Scalar(code) ?? "\u{FFFD}")
                     default: scalars.append(Unicode.Scalar(escaped))
                     }
@@ -303,6 +314,15 @@ enum CrashDiagnosticJSONReader {
         /// A key path with one more key on the end.
         private static func join(_ path: String, _ key: String) -> String {
             path.isEmpty ? key : "\(path).\(key)"
+        }
+
+        /// Reads the four hex digits of a `\u` escape.
+        private mutating func readHexEscape() -> UInt32? {
+            guard position + 4 <= bytes.count,
+                  let code = UInt32(String(decoding: bytes[position..<position + 4], as: UTF8.self), radix: 16)
+            else { return nil }
+            position += 4
+            return code
         }
 
         /// A JSON number as an unsigned integer. Addresses are integers, but a number written with

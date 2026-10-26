@@ -162,6 +162,13 @@ import Testing
         ])
     }
 
+    @Test func showsAFrameWhoseOffsetCannotBeRecovered() throws {
+        let tree = #"{"callStacks": [{"callStackRootFrames": [{"binaryName": "Lost", "offsetIntoBinaryTextSegment": 4361617408}]}]}"#
+        let threads = try #require(CrashDiagnosticJSONReader.read(Data(tree.utf8))).threads
+
+        #expect(CrashDiagnosticMapper.stackTrace(from: threads, symbolicator: NoSymbolicator()) == ["Lost + ?"])
+    }
+
     @Test func fallsBackToTheFirstThreadWhenNoneIsAttributed() throws {
         let tree = #"{"callStacks": [{"callStackRootFrames": [{"binaryName": "Only", "offsetIntoBinaryTextSegment": 7}]}]}"#
         let threads = try #require(CrashDiagnosticJSONReader.read(Data(tree.utf8))).threads
@@ -216,6 +223,41 @@ import Testing
         #expect(quirk.resolvedOffset == 99_024)
         #expect(real.resolvedOffset == 12_000)
     }
+
+    /// A load address with no address beside it, or a smaller one, is not an offset.
+    @Test func aLoadAddressWithoutAUsableAddressHasNoOffset() {
+        let alone = CrashDiagnosticJSONReader.Frame(offsetIntoBinaryTextSegment: 4_361_617_408, address: nil)
+        let smaller = CrashDiagnosticJSONReader.Frame(offsetIntoBinaryTextSegment: 4_361_617_408, address: 4_000)
+        let missing = CrashDiagnosticJSONReader.Frame(offsetIntoBinaryTextSegment: nil, address: 4_000)
+
+        #expect(alone.resolvedOffset == nil)
+        #expect(smaller.resolvedOffset == nil)
+        #expect(missing.resolvedOffset == nil)
+    }
+
+    @Test func decodesASurrogatePair() throws {
+        let json = #"{"m": "crash 💥 here", "lone": "\uD83D!"}"#
+
+        let values = try #require(CrashDiagnosticJSONReader.read(Data(json.utf8))).values
+
+        #expect(values["m"] == "crash \u{1F4A5} here")
+        #expect(values["lone"] == "\u{FFFD}!")
+    }
+
+    /// Threads are tracked as they open and close, so a frame outside every thread is never filed
+    /// under the last one.
+    @Test func filesEachFrameUnderItsOwnThread() throws {
+        let tree = #"""
+        {"callStacks": [
+          {"callStackRootFrames": [{"binaryName": "One", "offsetIntoBinaryTextSegment": 1}]},
+          {"callStackRootFrames": [{"binaryName": "Two", "offsetIntoBinaryTextSegment": 2}]}
+        ], "callStackRootFrames": [{"binaryName": "Stray", "offsetIntoBinaryTextSegment": 3}]}
+        """#
+
+        let threads = try #require(CrashDiagnosticJSONReader.read(Data(tree.utf8))).threads
+
+        #expect(threads.map { $0.frames.map(\.binaryName) } == [["One"], ["Two"]])
+    }
 }
 
 // MARK: - Ingestor
@@ -261,7 +303,23 @@ import Testing
         let result = newEntries([exception], stored: [handler])
 
         #expect(result.entries.isEmpty)
-        #expect(result.fingerprints == [exception.fingerprint], "a dropped diagnostic must still be remembered")
+        #expect(result.fingerprints == [exception.fingerprint, CrashDiagnosticIngestor.claimKey(for: handler)],
+                "a dropped diagnostic and the entry it matched must both be remembered")
+    }
+
+    /// A handler entry claimed on one launch cannot be claimed again on a later one, so a second
+    /// abort near it is kept.
+    @Test func aHandlerEntryClaimedOnAnEarlierLaunchIsNotClaimedAgain() {
+        let first = CrashDiagnosticFixtures.record(CrashDiagnosticFixtures.abort)
+        var second = first
+        second.fingerprint = "second"
+        let handler = CrashDiagnosticFixtures.handlerEntry(name: "NSGenericException", at: inWindow)
+
+        let earlierLaunch = newEntries([first], stored: [handler])
+        let laterLaunch = newEntries([second], stored: [handler], seen: Set(earlierLaunch.fingerprints))
+
+        #expect(earlierLaunch.entries.isEmpty)
+        #expect(laterLaunch.entries.count == 1)
     }
 
     @Test func keepsAnExceptionWhoseNameDiffers() {
@@ -409,6 +467,46 @@ import Testing
         #expect(symbol == "ScytherBootstrapIsInstalled + 4")
     }
 
+    /// Offset zero is the Mach-O header, which `dladdr` names after a header symbol. That is not a
+    /// function, and must not be offered as one.
+    @Test func doesNotNameTheHeader() throws {
+        let (uuid, _) = try scytherImage()
+
+        #expect(LoadedImageSymbolicator().symbol(binaryUUID: uuid, offset: 0) == nil)
+    }
+
+    /// Far past the nearest symbol, the name `dladdr` gives is a guess. The expectation follows
+    /// what `dladdr` itself reports for the address, so it holds however the image is laid out.
+    @Test func doesNotNameAnAddressFarFromItsSymbol() throws {
+        let (uuid, offset) = try scytherImage()
+        let far = offset + UInt64(LoadedImageSymbolicator.maximumSymbolDistance) + 1
+        let base = try #require(scytherHeader())
+        let address = base.advanced(by: Int(far))
+        var info = Dl_info()
+        let named = dladdr(address, &info) != 0 && info.dli_saddr != nil && info.dli_saddr != info.dli_fbase
+        let distance = named ? UInt(bitPattern: address) - UInt(bitPattern: info.dli_saddr) : .max
+
+        let symbol = LoadedImageSymbolicator().symbol(binaryUUID: uuid, offset: far)
+
+        #expect((symbol == nil) == (distance > LoadedImageSymbolicator.maximumSymbolDistance))
+    }
+
+    /// Where Scyther's image is loaded.
+    private func scytherHeader() -> UnsafeRawPointer? {
+        guard let function = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "ScytherBootstrapIsInstalled") else { return nil }
+        var info = Dl_info()
+        guard dladdr(function, &info) != 0 else { return nil }
+        return UnsafeRawPointer(info.dli_fbase)
+    }
+
+    /// Scyther's image UUID and the offset of `ScytherBootstrapIsInstalled` in it.
+    private func scytherImage() throws -> (UUID, UInt64) {
+        let function = try #require(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "ScytherBootstrapIsInstalled"))
+        let header = try #require(scytherHeader())
+        let uuid = try #require(LoadedImageSymbolicator.uuid(of: header.assumingMemoryBound(to: mach_header.self)))
+        return (uuid, UInt64(UInt(bitPattern: function) - UInt(bitPattern: header)))
+    }
+
     @Test func namesNothingInAnImageThatIsNotLoaded() {
         #expect(LoadedImageSymbolicator().symbol(binaryUUID: UUID(), offset: 0) == nil)
     }
@@ -446,7 +544,7 @@ import Testing
                                   appVersion: "1", buildNumber: "1", osVersion: "18", deviceModel: "iPhone",
                                   source: .metricKit)
 
-        #expect(entry.fullReport.contains("Source: metricKit"))
+        #expect(entry.fullReport.contains("Source: MetricKit"))
     }
 }
 
@@ -472,6 +570,26 @@ import Testing
         #expect(stored.count == 50)
         #expect(stored.first?.name == "crash 54")
         #expect(stored.last?.name == "crash 5")
+    }
+
+    /// Concurrent writers must not lose each other's entries.
+    @Test func concurrentRecordsKeepEveryEntry() async {
+        CrashLogger.instance.clear()
+        defer { CrashLogger.instance.clear() }
+
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<40 {
+                group.addTask {
+                    CrashLogger.instance.record([
+                        CrashDiagnosticFixtures.handlerEntry(name: "concurrent \(index)",
+                                                             at: base.addingTimeInterval(TimeInterval(index))),
+                    ])
+                }
+            }
+        }
+
+        #expect(CrashLogger.instance.allCrashes.count == 40)
     }
 
     @Test func postsTheRecordedNotification() async {
