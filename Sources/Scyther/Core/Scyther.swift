@@ -8,6 +8,7 @@
 #if !os(macOS)
 import UIKit
 import SwiftUI
+import ScytherBootstrap
 
 // MARK: - Delegate
 
@@ -191,14 +192,15 @@ public enum Scyther {
 
     /// Starts Scyther and enables all debugging features.
     ///
-    /// Call this early in your app's lifecycle, typically in `application(_:didFinishLaunchingWithOptions:)`.
+    /// Call this in `application(_:didFinishLaunchingWithOptions:)`. It does not have to come before
+    /// the code that builds the app's `URLSession`s: the `URLSessionConfiguration` hooks are installed
+    /// when the image loads, so a session created before this call is intercepted from the moment
+    /// it returns.
     ///
     /// Only the first call that is allowed to start Scyther does anything. Every later call returns
     /// immediately, whatever `allowProductionBuilds` it passes, so it is safe to call from more than
-    /// one place. Running the setup twice was not harmless: the `URLSessionConfiguration` hooks are
-    /// installed by exchanging method implementations, so a second exchange put the originals back
-    /// and stopped network logging for every session created afterwards, and several subsystems
-    /// registered their notification observers a second time.
+    /// one place. Running the setup twice was not harmless: several subsystems registered their
+    /// notification observers a second time.
     ///
     /// A call refused on an App Store build does not count as the first call: ``isStarted`` stays
     /// `false`, and a later call with `allowProductionBuilds: true` still starts Scyther.
@@ -214,6 +216,11 @@ public enum Scyther {
         }
 
         _started = true
+
+        // Called unconditionally, not inside `assert`, which a release build drops. The reference
+        // is what keeps the bootstrap's object file, and the constructor in it, in the link.
+        let sessionHooksInstalled = ScytherBootstrapIsInstalled()
+        assert(sessionHooksInstalled, "ScytherBootstrap did not install the URLSessionConfiguration hooks")
 
         // Clean up old network logs (files older than 7 days)
         NetworkLogCleaner.shared.cleanupOldLogs()

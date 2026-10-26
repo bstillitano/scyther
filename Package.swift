@@ -18,8 +18,15 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
     ],
     targets: [
+        // Installs the `URLSessionConfiguration` hooks at image load, before any host code runs.
+        // Objective-C because Swift has no `+load` or constructor.
+        .target(
+            name: "ScytherBootstrap",
+            path: "Sources/ScytherBootstrap"
+        ),
         .target(
             name: "Scyther",
+            dependencies: ["ScytherBootstrap"],
             path: "Sources/Scyther",
             resources: [
                 .process("Resources")
@@ -30,7 +37,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ScytherTests",
-            dependencies: ["Scyther"],
+            dependencies: ["Scyther", "ScytherBootstrap"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

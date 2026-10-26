@@ -72,8 +72,9 @@ final class ScytherStartTests: XCTestCase {
         )
     }
 
-    /// The failure a second `start()` used to cause: it exchanged the `URLSessionConfiguration`
-    /// implementations back, so new configurations no longer carried the interceptor.
+    /// The failure a second `start()` used to cause, when the `URLSessionConfiguration` hooks were
+    /// installed by `start()`: it exchanged the implementations back, so new configurations no
+    /// longer carried the interceptor.
     func testSecondStartKeepsSessionConfigurationsIntercepted() {
         Scyther.start()
         Scyther.start()
@@ -82,8 +83,8 @@ final class ScytherStartTests: XCTestCase {
         assertIntercepted(URLSessionConfiguration.ephemeral, "ephemeral")
     }
 
-    /// The swizzle defends itself too. Tests reset `Scyther._started`, so the guard in `start()`
-    /// alone cannot stop a second exchange within one test run.
+    /// `NetworkHelper.start()` installs no hooks of its own any more — `ScytherBootstrap` installs
+    /// them once, at image load — so calling it repeatedly must leave them in place.
     func testInstallingTheSessionConfigurationHooksTwiceKeepsThemInstalled() {
         NetworkHelper.instance.start()
         NetworkHelper.instance.start()

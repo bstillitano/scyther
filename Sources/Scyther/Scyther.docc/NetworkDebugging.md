@@ -24,6 +24,37 @@ Each logged request includes:
 - Timing information
 - cURL command for reproduction
 
+### How Sessions Are Intercepted
+
+Scyther intercepts a session by putting `HTTPInterceptorURLProtocol` at the front of its
+configuration's `protocolClasses`. A session copies its configuration when it is created and never
+reads it again, so this has to happen before the session exists — and a networking layer is often
+built long before `Scyther.start()` runs, by a dependency container, an auth refresher or a
+cross-platform client.
+
+So the hooks are not installed by `start()`. A small Objective-C target, `ScytherBootstrap`,
+installs them when the image loads, before any of the app's code runs. From then on every
+configuration made with `.default`, `.ephemeral` or `.background(withIdentifier:)` carries the
+interceptor, whatever order the app starts things in. `URLSession.shared` is covered separately,
+by `URLProtocol.registerClass` in `start()`.
+
+The interceptor is inert until Scyther starts: it declines every request while
+``Scyther/isStarted`` is `false`. A session created before `start()` is therefore logged from the
+moment `start()` returns, and requests it made before that are not.
+
+- Note: The hooks run in **every** build, including App Store builds that never start Scyther. In
+  those builds each configuration carries one extra protocol that declines every request. That is
+  deliberate: it is what lets an App Store build that calls
+  ``Scyther/start(allowProductionBuilds:)`` part-way through a session — behind an unlock code, say —
+  log the sessions it created earlier.
+
+To keep a session out entirely, include `String.noSwizzle` in its identifier:
+
+```swift
+let webhook = URLSessionConfiguration.default(withIdentifier: "webhook_\(String.noSwizzle)")
+let upload = URLSessionConfiguration.background(withIdentifier: "upload_\(String.noSwizzle)")
+```
+
 ## Viewing Requests
 
 Open the Scyther menu and navigate to **Network Logs** to see all captured requests. Tap any request to see its full details.
@@ -658,13 +689,16 @@ Binary responses (images, files) are noted but not displayed inline. Use the cUR
 
 If requests aren't being logged:
 
-1. Ensure `Scyther.start()` was called before making requests
+1. Ensure `Scyther.start()` was called before the requests were made. The session itself may be
+   older than `start()`; only the requests have to come after it.
 2. Check that you're using `URLSession` (not custom networking)
 3. Verify the app isn't an App Store build
 
 ### Custom URLSession Configurations
 
-If you're using a custom `URLSessionConfiguration`, Scyther's protocol may not be automatically registered. Ensure you're using standard session configurations.
+A configuration made with `.default`, `.ephemeral` or `.background(withIdentifier:)` carries
+Scyther's protocol automatically. One whose `protocolClasses` the app replaces afterwards loses it,
+and so does one whose identifier contains `String.noSwizzle`.
 
 ## See Also
 

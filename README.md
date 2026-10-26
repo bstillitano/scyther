@@ -607,6 +607,29 @@ class AppCoordinator: ScytherDelegate {
 
 All HTTP requests made through `URLSession` are automatically intercepted and logged.
 
+#### Startup order does not matter
+
+A session copies its configuration when it is created, so Scyther has to reach the configuration
+before the session exists. The `URLSessionConfiguration` hooks are therefore installed when the
+image loads, by the `ScytherBootstrap` Objective-C target, rather than by `Scyther.start()`. Every
+configuration made with `.default`, `.ephemeral` or `.background(withIdentifier:)` carries
+`HTTPInterceptorURLProtocol` from the moment it exists, so a networking layer built before
+`start()` — by a dependency container, an auth refresher or a cross-platform client — is logged
+from the moment `start()` returns. Requests made before that are not.
+
+The interceptor declines every request until Scyther starts. The hooks run in **every** build,
+including App Store builds that never start Scyther, where each configuration carries one extra
+protocol that declines everything. That is deliberate: it is what lets an App Store build that
+calls `Scyther.start(allowProductionBuilds: true)` part-way through a session, behind an unlock
+code for example, log the sessions it created earlier.
+
+To keep a session out entirely, put `String.noSwizzle` in its identifier:
+
+```swift
+let webhook = URLSessionConfiguration.default(withIdentifier: "webhook_\(String.noSwizzle)")
+let upload = URLSessionConfiguration.background(withIdentifier: "upload_\(String.noSwizzle)")
+```
+
 #### Accessing Network Data
 
 ```swift

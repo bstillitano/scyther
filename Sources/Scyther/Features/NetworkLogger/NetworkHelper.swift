@@ -32,15 +32,16 @@ import Foundation
 /// let ip = await NetworkHelper.instance.ipAddress
 /// ```
 ///
-/// - Note: Network logging uses method swizzling to intercept `URLSession` requests.
+/// - Note: Sessions other than `URLSession.shared` are intercepted through `URLSessionConfiguration`
+///   hooks that the `ScytherBootstrap` target installs at image load.
 @MainActor
 public final class NetworkHelper: Sendable {
     /// Private Init to Stop re-initialisation and allow singleton creation.
     private nonisolated init() {}
 
     /// An initialised, shared instance of the `NetworkHelper` class.
-    /// Note: nonisolated(unsafe) is required because this singleton is accessed from
-    /// swizzled URLSessionConfiguration methods which run in a nonisolated context.
+    /// Note: nonisolated(unsafe) is required because this singleton is read from `URLProtocol`
+    /// callbacks, which run in a nonisolated context.
     /// The warning about this being unnecessary is incorrect for @MainActor classes.
     nonisolated(unsafe) static let instance = NetworkHelper()
 
@@ -176,14 +177,16 @@ public final class NetworkHelper: Sendable {
 extension NetworkHelper {
     /// Starts network logging by registering the HTTP interceptor protocol.
     ///
-    /// This method performs the following:
-    /// 1. Swizzles `URLSessionConfiguration` to intercept default sessions
-    /// 2. Registers `HTTPInterceptorURLProtocol` to capture network traffic
+    /// Registering covers `URLSession.shared`. Every other session is covered by the
+    /// `ScytherBootstrap` target, which hooks `URLSessionConfiguration` when the image loads and
+    /// puts `HTTPInterceptorURLProtocol` into each configuration as it is created — including the
+    /// ones a host app creates before ``Scyther/start(allowProductionBuilds:)``, which a hook
+    /// installed here could never reach, because a session copies its configuration when it is
+    /// created.
     ///
-    /// Call this method once during application startup to enable network logging.
+    /// Call this method once during application startup to enable network logging. Calling it
+    /// again is harmless.
     func start() {
-        // Register `URLProtocol` class for network logging to intercept requests. Swizzling required because libraries like Alamofire don't use the shared NSURLSession instance but instead use their own instance.
-        URLSessionConfiguration.swizzleDefaultSessionConfiguration()
         enable(true)
     }
 }
@@ -200,29 +203,6 @@ extension NetworkHelper {
         } else {
             URLProtocol.unregisterClass(HTTPInterceptorURLProtocol.self)
         }
-    }
-
-    /// Enables or disables network logging for a specific session configuration.
-    ///
-    /// This method adds or removes the `HTTPInterceptorURLProtocol` from the
-    /// configuration's protocol classes array.
-    ///
-    /// - Parameters:
-    ///   - enabled: `true` to enable logging, `false` to disable.
-    ///   - sessionConfiguration: The `URLSessionConfiguration` to modify.
-    /// - Note: This method is nonisolated as URLSession configuration is thread-safe.
-    nonisolated func enable(_ enabled: Bool, sessionConfiguration: URLSessionConfiguration) {
-        guard var urlProtocolClasses = sessionConfiguration.protocolClasses else { return }
-
-        let index = urlProtocolClasses.firstIndex(where: { $0 == HTTPInterceptorURLProtocol.self })
-        if enabled == true, index == nil {
-            urlProtocolClasses.insert(HTTPInterceptorURLProtocol.self, at: 0)
-        } else if let index, enabled == false {
-            urlProtocolClasses.remove(at: index)
-        }
-        sessionConfiguration.protocolClasses = urlProtocolClasses
-
-        enable(enabled)
     }
 }
 
