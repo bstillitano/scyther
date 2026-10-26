@@ -74,13 +74,17 @@ actor NetworkLogger {
     func add(_ obj: HTTPRequest) {
         items.insert(obj, at: 0)
         continuation?.yield(items)
+
+        // Also written to disk, so a crash can be exported with the traffic that led to it.
+        SessionJournal.shared.recordRequest(obj)
     }
 
     /// Removes all HTTP requests from the log and deletes associated files from disk.
     ///
     /// Clears the entire in-memory log, broadcasts an update with an empty array
     /// to all stream subscribers, and deletes all network log files from disk
-    /// including request bodies, response bodies, and the session log.
+    /// including request bodies, response bodies, the session log, and the session journal's
+    /// copy of every session's traffic.
     func clear() {
         items.removeAll()
         continuation?.yield(items)
@@ -89,5 +93,9 @@ actor NetworkLogger {
         Task { @MainActor in
             NetworkLogCleaner.shared.deleteAllLogFiles()
         }
+
+        // And the session journal's copy, which would otherwise outlive the log it was cleared
+        // from and turn up in a crash export.
+        SessionJournal.shared.clearNetworkLogs()
     }
 }

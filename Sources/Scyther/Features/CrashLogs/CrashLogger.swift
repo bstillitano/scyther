@@ -9,12 +9,17 @@
 import Foundation
 import UIKit
 
-/// A singleton that captures uncaught exceptions and stores them for viewing.
+/// A singleton that captures crashes and stores them for viewing.
 ///
-/// `CrashLogger` uses `NSSetUncaughtExceptionHandler` to intercept Objective-C
-/// and Swift exceptions before the app terminates. Captured crashes are persisted
-/// to `UserDefaults.scyther`, Scyther's private preferences suite, and can be viewed on
-/// subsequent app launches.
+/// `CrashLogger` captures crashes two ways:
+///
+/// - `NSSetUncaughtExceptionHandler` intercepts Objective-C exceptions before the app terminates.
+/// - `CrashDiagnosticsCollector` ingests MetricKit's crash diagnostics on the next launch, which
+///   covers every other kind of crash: Swift traps such as a force unwrap of `nil`,
+///   `EXC_BAD_ACCESS`, and aborts from other runtimes.
+///
+/// Both are persisted to `UserDefaults.scyther`, Scyther's private preferences suite, and can be
+/// viewed on subsequent app launches. ``CrashLogEntry/source`` records which path captured each.
 ///
 /// ## Features
 /// - Automatic exception interception
@@ -49,9 +54,17 @@ import UIKit
 /// ```
 ///
 /// ## Limitations
-/// - Only captures `NSException`-based crashes
-/// - Pure Swift `fatalError()` or `preconditionFailure()` may not be captured
-/// - Stack traces contain raw memory addresses (not symbolicated)
+/// - The exception handler only sees `NSException`-based crashes. Everything else — a Swift
+///   `fatalError()`, a force unwrap, `EXC_BAD_ACCESS` — arrives through MetricKit instead, and
+///   only on the **next launch**, when the system delivers the diagnostic.
+/// - MetricKit delivers diagnostics on a **physical device** only. The Simulator never does, so on
+///   the Simulator only `NSException` crashes are captured.
+/// - A crash that happens with the **debugger attached** produces no MetricKit diagnostic: the
+///   debugger stops the process before the system can record one.
+/// - MetricKit stack traces are best-effort symbolicated against the images loaded now. Frames in
+///   a stripped binary, or from a build other than the one running, show a binary and offset only.
+/// - A MetricKit entry is stamped with the end of its payload's window, not the moment of the
+///   crash, which MetricKit does not report.
 ///
 /// ## Topics
 ///
@@ -66,7 +79,7 @@ import UIKit
 ///
 /// ### Notifications
 /// - ``didRecordCrashNotification``
-public final class CrashLogger: @unchecked Sendable {
+public final class CrashLogger: CrashLogRepository, @unchecked Sendable {
     /// Shared instance.
     public static let instance = CrashLogger()
 
@@ -92,6 +105,15 @@ public final class CrashLogger: @unchecked Sendable {
     /// Notification posted when a new crash is recorded.
     public static let didRecordCrashNotification = Notification.Name("CrashLoggerDidRecordCrash")
 
+    /// Serialises every read-modify-write of the stored crashes.
+    ///
+    /// The exception handler records on whichever thread is crashing, MetricKit entries arrive on
+    /// the collector's queue, and `clear()` runs on the main thread. Without the lock, one writer
+    /// saving a list it loaded before another's write would lose that write — a crash recorded as
+    /// the app died, or a clear that undoes itself. Recursive, because an exception raised on a
+    /// thread that already holds it must still be able to record.
+    private let storeLock = NSRecursiveLock()
+
     private init() {}
 
     /// All stored crash logs, newest first.
@@ -115,7 +137,8 @@ public final class CrashLogger: @unchecked Sendable {
 
         // Cache device info now (on main thread) so it's available during crashes
         CrashLogger.cachedOSVersion = UIDevice.current.systemVersion
-        CrashLogger.cachedDeviceModel = UIDevice.current.model
+        // The hardware identifier, such as `iPhone17,1`, rather than `UIDevice.model`'s "iPhone".
+        CrashLogger.cachedDeviceModel = CrashDetails.currentHardwareModel
         CrashLogger.cachedAppVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         CrashLogger.cachedBuildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
 
@@ -135,6 +158,12 @@ public final class CrashLogger: @unchecked Sendable {
     /// Records a crash from an exception.
     /// Called from the exception handler - keep this fast and safe.
     private static func recordCrash(_ exception: NSException) {
+        let journal = SessionJournal.shared
+        var details = CrashDetails.capture(exception: exception)
+        let sessionID = journal.currentSessionID
+        if sessionID != nil {
+            details.sessionMatch = SessionJournal.Match.currentSession.rawValue
+        }
         let entry = CrashLogEntry(
             name: exception.name.rawValue,
             reason: exception.reason,
@@ -142,8 +171,19 @@ public final class CrashLogger: @unchecked Sendable {
             appVersion: cachedAppVersion,
             buildNumber: cachedBuildNumber,
             osVersion: cachedOSVersion,
-            deviceModel: cachedDeviceModel
+            deviceModel: cachedDeviceModel,
+            sessionID: sessionID
         )
+
+        // Whatever console output and traffic are still queued, written before the process dies.
+        journal.flush()
+
+        CrashLogger.instance.storeLock.lock()
+        defer { CrashLogger.instance.storeLock.unlock() }
+
+        // The threads and images, under the lock, so a save on another thread — which prunes the
+        // files of crashes not in the list — cannot remove them before this crash is listed.
+        CrashArtifactStore.shared.writeDetails(details, for: entry.id)
 
         // Load existing crashes
         var crashes = CrashLogger.instance.load()
@@ -160,9 +200,45 @@ public final class CrashLogger: @unchecked Sendable {
         CrashLogger.instance.save(crashes)
     }
 
+    /// Stores entries from another source — MetricKit — alongside the existing crashes.
+    ///
+    /// Entries are kept newest first and the store keeps its cap of 50. A MetricKit entry for a
+    /// crash from a few launches ago may be older than crashes already stored, so the list is
+    /// sorted rather than prepended to. Posts ``didRecordCrashNotification`` on the main queue.
+    ///
+    /// - Parameters:
+    ///   - entries: The entries to add.
+    ///   - artifacts: Their files, written in the same step.
+    func record(_ entries: [CrashLogEntry], artifacts: [CrashArtifacts] = []) {
+        guard !entries.isEmpty || !artifacts.isEmpty else { return }
+        storeLock.lock()
+        // Written under the lock for the same reason as in `recordCrash(_:)`: a save prunes the
+        // files of every crash not in the list it saves.
+        for artifact in artifacts {
+            CrashArtifactStore.shared.writeDetails(artifact.details, for: artifact.id)
+            if let diagnostic = artifact.diagnosticJSON {
+                CrashArtifactStore.shared.writeDiagnostic(diagnostic, for: artifact.id)
+            }
+        }
+        let crashes = (load() + entries).sorted { $0.timestamp > $1.timestamp }
+        save(Array(crashes.prefix(CrashLogger.maxCrashes)))
+        storeLock.unlock()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: CrashLogger.didRecordCrashNotification, object: nil)
+        }
+    }
+
+    /// A stored crash's details, if any were written.
+    func details(for id: UUID) -> CrashDetails? {
+        CrashArtifactStore.shared.details(for: id)
+    }
+
     /// Clears all stored crash logs.
     public func clear() {
+        storeLock.lock()
         UserDefaults.scyther.removeObject(forKey: CrashLogger.storageKey)
+        CrashArtifactStore.shared.prune(keeping: [])
+        storeLock.unlock()
         NotificationCenter.default.post(name: CrashLogger.didRecordCrashNotification, object: nil)
     }
 
@@ -184,6 +260,8 @@ public final class CrashLogger: @unchecked Sendable {
         do {
             let data = try JSONEncoder().encode(crashes)
             UserDefaults.scyther.set(data, forKey: CrashLogger.storageKey)
+            // A crash trimmed off the end of the list takes its files with it.
+            CrashArtifactStore.shared.prune(keeping: Set(crashes.map(\.id)))
             UserDefaults.scyther.synchronize() // Force immediate write - we're crashing
         } catch {
             // Can't do much if encoding fails during a crash

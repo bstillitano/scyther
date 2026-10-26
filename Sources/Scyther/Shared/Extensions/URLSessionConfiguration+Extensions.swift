@@ -74,119 +74,15 @@ public extension URLSessionConfiguration {
     ///     withIdentifier: "webhook_\(String.noSwizzle)"
     /// )
     /// ```
+    ///
+    /// - Note: `.default` already carries `HTTPInterceptorURLProtocol`, because the bootstrap hooks
+    ///   every configuration as it is created. An opted-out identifier takes it back out here.
     @objc class func `default`(withIdentifier identifier: String) -> URLSessionConfiguration {
         let configuration: URLSessionConfiguration = .default
         configuration.sharedContainerIdentifier = identifier
-        return configuration
-    }
-}
-
-// MARK: - Internal Swizzling Methods
-
-/// Internal extensions for URLSessionConfiguration handling network interception.
-///
-/// These methods implement the swizzling mechanism that allows Scyther to intercept
-/// and log network requests. The swizzled methods wrap the original URLSessionConfiguration
-/// initializers and enable network monitoring through the NetworkHelper.
-internal extension URLSessionConfiguration {
-
-    /// Sets up method swizzling for all URLSessionConfiguration initializers.
-    ///
-    /// This method swizzles the following configuration creation methods:
-    /// - `default` property
-    /// - `default(withIdentifier:)` method
-    /// - `ephemeral` property
-    /// - `background(withIdentifier:)` method
-    /// - `init()` initializer
-    ///
-    /// Called during Scyther initialization to enable network monitoring. Only the first call
-    /// installs anything; later calls do nothing.
-    ///
-    /// The guard matters because `method_exchangeImplementations` is its own inverse: a second
-    /// exchange would put the original implementations back, and every configuration created after
-    /// it would silently lose `HTTPInterceptorURLProtocol`. ``Scyther/start(allowProductionBuilds:)``
-    /// only runs once, but tests reset its started flag, so the hook defends itself as well.
-    class func swizzleDefaultSessionConfiguration() {
-        guard self == URLSessionConfiguration.self else { return }
-        _ = installSessionConfigurationSwizzles
-    }
-
-    /// Exchanges the configuration initializers for their swizzled versions, exactly once per process.
-    ///
-    /// A `static let` is initialised lazily and atomically, which gives a thread-safe run-once
-    /// without a separate flag and lock.
-    private static let installSessionConfigurationSwizzles: Void = {
-
-        let defaultSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(getter: URLSessionConfiguration.default))
-        let swizzledDefaultSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.swizzledDefaultSessionConfiguration))
-        method_exchangeImplementations(defaultSessionConfiguration!, swizzledDefaultSessionConfiguration!)
-
-        let defaultWithIdentifierSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.default(withIdentifier:)))
-        let swizzledDefaultWithIdentifierSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.swizzledDefault(withIdentifier:)))
-        method_exchangeImplementations(defaultWithIdentifierSessionConfiguration!, swizzledDefaultWithIdentifierSessionConfiguration!)
-
-        let ephemeralSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(getter: URLSessionConfiguration.ephemeral))
-        let swizzledEphemeralSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.swizzledEphemeralSessionConfiguration))
-        method_exchangeImplementations(ephemeralSessionConfiguration!, swizzledEphemeralSessionConfiguration!)
-
-        let backgroundSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.background(withIdentifier:)))
-        let swizzledBackgroundSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.swizzledBackground(withIdentifier:)))
-        method_exchangeImplementations(backgroundSessionConfiguration!, swizzledBackgroundSessionConfiguration!)
-
-        let initSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.init))
-        let swizzledInitSessionConfiguration = class_getClassMethod(URLSessionConfiguration.self, #selector(URLSessionConfiguration.swizzledInit))
-        method_exchangeImplementations(initSessionConfiguration!, swizzledInitSessionConfiguration!)
-    }()
-
-    /// Swizzled version of the default configuration getter.
-    ///
-    /// Creates a default configuration and enables network monitoring on it.
-    @objc
-    class func swizzledDefaultSessionConfiguration() -> URLSessionConfiguration {
-        let configuration = swizzledDefaultSessionConfiguration()
-        NetworkHelper.instance.enable(true, sessionConfiguration: configuration)
-        return configuration
-    }
-
-    /// Swizzled version of the default configuration with identifier method.
-    ///
-    /// Creates a default configuration with the specified identifier and enables
-    /// network monitoring unless the identifier contains the noSwizzle string.
-    @objc
-    class func swizzledDefault(withIdentifier identifier: String) -> URLSessionConfiguration {
-        let configuration = swizzledDefault(withIdentifier: identifier)
-        NetworkHelper.instance.enable(!(configuration.sharedContainerIdentifier?.contains(String.noSwizzle) ?? false), sessionConfiguration: configuration)
-        return configuration
-    }
-
-    /// Swizzled version of the ephemeral configuration getter.
-    ///
-    /// Creates an ephemeral configuration and enables network monitoring on it.
-    @objc
-    class func swizzledEphemeralSessionConfiguration() -> URLSessionConfiguration {
-        let configuration = swizzledEphemeralSessionConfiguration()
-        NetworkHelper.instance.enable(true, sessionConfiguration: configuration)
-        return configuration
-    }
-
-    /// Swizzled version of the background configuration method.
-    ///
-    /// Creates a background configuration with the specified identifier and enables
-    /// network monitoring unless the identifier contains the noSwizzle string.
-    @objc
-    class func swizzledBackground(withIdentifier identifier: String) -> URLSessionConfiguration {
-        let configuration = swizzledBackground(withIdentifier: identifier)
-        NetworkHelper.instance.enable(!(configuration.identifier?.contains(String.noSwizzle) ?? false), sessionConfiguration: configuration)
-        return configuration
-    }
-
-    /// Swizzled version of the default initializer.
-    ///
-    /// Creates a configuration and enables network monitoring on it.
-    @objc
-    class func swizzledInit() -> URLSessionConfiguration {
-        let configuration = swizzledInit()
-        NetworkHelper.instance.enable(true, sessionConfiguration: configuration)
+        if identifier.contains(String.noSwizzle) {
+            configuration.protocolClasses?.removeAll { $0 == HTTPInterceptorURLProtocol.self }
+        }
         return configuration
     }
 }

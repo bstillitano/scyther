@@ -8,6 +8,7 @@
 #if !os(macOS)
 import UIKit
 import SwiftUI
+import ScytherBootstrap
 
 // MARK: - Delegate
 
@@ -191,14 +192,15 @@ public enum Scyther {
 
     /// Starts Scyther and enables all debugging features.
     ///
-    /// Call this early in your app's lifecycle, typically in `application(_:didFinishLaunchingWithOptions:)`.
+    /// Call this in `application(_:didFinishLaunchingWithOptions:)`. It does not have to come before
+    /// the code that builds the app's `URLSession`s: the `URLSessionConfiguration` hooks are installed
+    /// when the image loads, so a session created before this call is intercepted from the moment
+    /// it returns.
     ///
     /// Only the first call that is allowed to start Scyther does anything. Every later call returns
     /// immediately, whatever `allowProductionBuilds` it passes, so it is safe to call from more than
-    /// one place. Running the setup twice was not harmless: the `URLSessionConfiguration` hooks are
-    /// installed by exchanging method implementations, so a second exchange put the originals back
-    /// and stopped network logging for every session created afterwards, and several subsystems
-    /// registered their notification observers a second time.
+    /// one place. The setup must run once: several subsystems register notification observers, and
+    /// a second run would register them again.
     ///
     /// A call refused on an App Store build does not count as the first call: ``isStarted`` stays
     /// `false`, and a later call with `allowProductionBuilds: true` still starts Scyther.
@@ -214,6 +216,15 @@ public enum Scyther {
         }
 
         _started = true
+
+        // Called unconditionally, not inside `assert`, which a release build drops. The reference
+        // is what keeps the bootstrap's object file, and the constructor in it, in the link.
+        let sessionHooksInstalled = ScytherBootstrapIsInstalled()
+        assert(sessionHooksInstalled, "ScytherBootstrap did not install the URLSessionConfiguration hooks")
+
+        // Start writing this launch's console output and traffic to disk before either is
+        // captured, keeping the earlier sessions stored crashes refer to.
+        SessionJournal.shared.start(pinned: Set(CrashLogger.instance.allCrashes.compactMap(\.sessionID)))
 
         // Clean up old network logs (files older than 7 days)
         NetworkLogCleaner.shared.cleanupOldLogs()
@@ -978,8 +989,11 @@ public final class DeepLinks: Sendable {
 
 /// Captures and displays crash logs.
 ///
-/// The `Crashes` subsystem uses `NSSetUncaughtExceptionHandler` to capture
-/// uncaught exceptions and store them for viewing on subsequent app launches.
+/// The `Crashes` subsystem captures crashes two ways and stores them for viewing on subsequent app
+/// launches: `NSSetUncaughtExceptionHandler` catches uncaught Objective-C exceptions as they
+/// happen, and MetricKit delivers a diagnostic for every other kind of crash — Swift traps,
+/// `EXC_BAD_ACCESS`, aborts — on the next launch. MetricKit diagnostics arrive on a physical device
+/// only, and not for a crash that happened with the debugger attached.
 ///
 /// ## Viewing Crash Logs
 ///
@@ -1006,6 +1020,7 @@ public final class Crashes: Sendable {
 
     internal func startCapturing() {
         CrashLogger.instance.start()
+        CrashDiagnosticsCollector.shared.start()
     }
 
     /// Clears all stored crash logs.

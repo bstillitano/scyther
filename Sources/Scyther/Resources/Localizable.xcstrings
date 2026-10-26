@@ -4168,6 +4168,257 @@
         }
       }
     },
+    "%lld threads": {
+      "comment": "Value of the Full Report row: how many threads the crash report holds",
+      "localizations": {
+        "ar": {
+          "variations": {
+            "plural": {
+              "few": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld سلاسل"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld سلسلة"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "سلسلة واحدة"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld سلسلة"
+                }
+              },
+              "two": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "سلسلتان"
+                }
+              },
+              "zero": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld سلسلة"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld Thread"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld Threads"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld thread"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld threads"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld hilo"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld hilos"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld thread"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld threads"
+                }
+              }
+            }
+          }
+        },
+        "it": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld thread"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld thread"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld個のスレッド"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "스레드 %lld개"
+                }
+              }
+            }
+          }
+        },
+        "nl": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld thread"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld threads"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld thread"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld threads"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "few": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld потока"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld потоков"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld поток"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld потока"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld 个线程"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld 個執行緒"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld views": {
       "comment": "How many views the snapshot holds. %lld is the count",
       "localizations": {
@@ -15567,6 +15818,83 @@
         }
       }
     },
+    "Console output of the crashed session": {
+      "comment": "Export contents row: console log of the session that crashed",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "مخرجات وحدة التحكم للجلسة المتعطلة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Konsolenausgabe der abgestürzten Sitzung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Salida de consola de la sesión que falló"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sortie console de la session plantée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Output della console della sessione andata in crash"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "クラッシュしたセッションのコンソール出力"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "충돌한 세션의 콘솔 출력"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Console-uitvoer van de gecrashte sessie"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Saída do console da sessão que falhou"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Вывод консоли сеанса со сбоем"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "崩溃会话的控制台输出"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "當機工作階段的主控台輸出"
+          }
+        }
+      }
+    },
     "Console output will appear here": {
       "comment": "Empty state subtitle on the console log page",
       "localizations": {
@@ -17950,6 +18278,160 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "當機記錄"
+          }
+        }
+      }
+    },
+    "Crash report with symbolication commands": {
+      "comment": "Export contents row: the text crash report, with atos commands",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "تقرير العطل مع أوامر الترميز"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Absturzbericht mit Symbolisierungsbefehlen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Informe de fallo con comandos de simbolización"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Rapport de plantage avec commandes de symbolisation"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Report del crash con comandi di simbolizzazione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "シンボル化コマンド付きのクラッシュレポート"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "심볼화 명령이 포함된 충돌 보고서"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Crashrapport met symbolicatieopdrachten"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Relatório de falha com comandos de simbolização"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Отчёт о сбое с командами символизации"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "附带符号化命令的崩溃报告"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "附帶符號化指令的當機報告"
+          }
+        }
+      }
+    },
+    "Crashes": {
+      "comment": "Label for the number of crashes in an export archive",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "الأعطال"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Abstürze"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Fallos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Plantages"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Crash"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "クラッシュ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "충돌"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Crashes"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Falhas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Сбои"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "崩溃"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "當機"
           }
         }
       }
@@ -24519,6 +25001,83 @@
         }
       }
     },
+    "Every thread and binary image, in the layout of Apple's crash reports.": {
+      "comment": "Footer under the Full Report row in crash details",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "كل سلسلة وكل صورة ثنائية، بتنسيق تقارير الأعطال من Apple."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Jeder Thread und jedes Binary-Image im Layout der Absturzberichte von Apple."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cada hilo e imagen binaria, con el formato de los informes de fallos de Apple."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Chaque thread et chaque image binaire, dans la présentation des rapports de plantage d’Apple."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ogni thread e immagine binaria, nel formato dei report dei crash di Apple."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "すべてのスレッドとバイナリイメージを、Appleのクラッシュレポートの形式で表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "모든 스레드와 바이너리 이미지를 Apple 충돌 보고서 형식으로 표시합니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Elke thread en elk binair image, in de opmaak van de crashrapporten van Apple."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cada thread e imagem binária, no formato dos relatórios de falhas da Apple."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Все потоки и двоичные образы в формате отчётов о сбоях Apple."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "所有线程和二进制映像，采用 Apple 崩溃报告的格式。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "所有執行緒和二進位映像，採用 Apple 當機報告的格式。"
+          }
+        }
+      }
+    },
     "Exact": {
       "comment": "Pattern comparison that requires the whole value to be equal",
       "localizations": {
@@ -24669,6 +25228,160 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "例外"
+          }
+        }
+      }
+    },
+    "Exception Codes": {
+      "comment": "Label in crash details for the Mach exception codes",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "رموز الاستثناء"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ausnahmecodes"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Códigos de excepción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Codes d’exception"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Codici di eccezione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "例外コード"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "예외 코드"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Uitzonderingscodes"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Códigos de exceção"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Коды исключения"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "异常代码"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "例外代碼"
+          }
+        }
+      }
+    },
+    "Exception Handler": {
+      "comment": "Crash source: captured by the uncaught exception handler as the app crashed",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "معالج الاستثناءات"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ausnahme-Handler"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Controlador de excepciones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Gestionnaire d'exceptions"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Gestore delle eccezioni"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "例外ハンドラ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "예외 처리기"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Uitzonderingshandler"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Manipulador de exceções"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Обработчик исключений"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "异常处理程序"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "例外處理常式"
           }
         }
       }
@@ -25208,6 +25921,83 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "匯出"
+          }
+        }
+      }
+    },
+    "Export Crash Report": {
+      "comment": "Title of the sheet that exports crashes to a zip archive",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "تصدير تقرير الأعطال"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Absturzbericht exportieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Exportar informe de fallos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Exporter le rapport de plantage"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Esporta report dei crash"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "クラッシュレポートを書き出す"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "충돌 보고서 내보내기"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Crashrapport exporteren"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Exportar relatório de falhas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Экспорт отчёта о сбоях"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "导出崩溃报告"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "匯出當機報告"
           }
         }
       }
@@ -27522,6 +28312,83 @@
         }
       }
     },
+    "Full Report": {
+      "comment": "Row in crash details that opens the full text crash report",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "التقرير الكامل"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Vollständiger Bericht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Informe completo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Rapport complet"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Report completo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "完全なレポート"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "전체 보고서"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Volledig rapport"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Relatório completo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Полный отчёт"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "完整报告"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "完整報告"
+          }
+        }
+      }
+    },
     "Generic Password": {
       "comment": "Keychain security class name, kSecClassGenericPassword",
       "localizations": {
@@ -29828,6 +30695,83 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "IP 位址"
+          }
+        }
+      }
+    },
+    "IPS file for Xcode and Console": {
+      "comment": "Export contents row: the .ips crash file",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ملف IPS لـ Xcode ووحدة التحكم"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "IPS-Datei für Xcode und Konsole"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Archivo IPS para Xcode y Consola"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Fichier IPS pour Xcode et Console"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "File IPS per Xcode e Console"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Xcodeとコンソール用のIPSファイル"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Xcode 및 콘솔용 IPS 파일"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "IPS-bestand voor Xcode en Console"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Arquivo IPS para Xcode e Console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Файл IPS для Xcode и Консоли"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "适用于 Xcode 和控制台的 IPS 文件"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "適用於 Xcode 和主控台的 IPS 檔案"
           }
         }
       }
@@ -34549,6 +35493,83 @@
         }
       }
     },
+    "Memory Region": {
+      "comment": "Section header in crash details for the virtual memory region around a faulting address",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "منطقة الذاكرة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Speicherbereich"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Región de memoria"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Région mémoire"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Regione di memoria"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "メモリ領域"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "메모리 영역"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Geheugenregio"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Região de memória"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Область памяти"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "内存区域"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "記憶體區域"
+          }
+        }
+      }
+    },
     "Method": {
       "comment": "Overview row label and filter chip title for the HTTP method",
       "localizations": {
@@ -34699,6 +35720,83 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "方法"
+          }
+        }
+      }
+    },
+    "MetricKit": {
+      "comment": "Crash source: delivered by Apple's MetricKit framework on a later launch. Product name, do not translate",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKit"
           }
         }
       }
@@ -36085,6 +37183,83 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "網路記錄"
+          }
+        }
+      }
+    },
+    "Network requests of the crashed session": {
+      "comment": "Export contents row: network log of the session that crashed",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "طلبات الشبكة للجلسة المتعطلة"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Netzwerkanfragen der abgestürzten Sitzung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Solicitudes de red de la sesión que falló"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Requêtes réseau de la session plantée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Richieste di rete della sessione andata in crash"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "クラッシュしたセッションのネットワークリクエスト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "충돌한 세션의 네트워크 요청"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Netwerkverzoeken van de gecrashte sessie"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Solicitações de rede da sessão que falhou"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Сетевые запросы сеанса со сбоем"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "崩溃会话的网络请求"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "當機工作階段的網路請求"
           }
         }
       }
@@ -41171,6 +42346,83 @@
         }
       }
     },
+    "One folder per crash. A README in the archive explains each file and how to symbolicate it.": {
+      "comment": "Footer under the crash export contents",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "مجلد واحد لكل عطل. يشرح ملف README في الأرشيف كل ملف وكيفية ترميزه."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ein Ordner pro Absturz. Eine README im Archiv erklärt jede Datei und wie sie symbolisiert wird."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Una carpeta por fallo. Un README en el archivo explica cada archivo y cómo simbolizarlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Un dossier par plantage. Un fichier README dans l’archive décrit chaque fichier et explique comment le symboliser."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Una cartella per ogni crash. Un README nell’archivio descrive ogni file e come simbolizzarlo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "クラッシュごとに1つのフォルダ。アーカイブ内のREADMEで、各ファイルとシンボル化の方法を説明しています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "충돌마다 폴더가 하나씩 있습니다. 아카이브의 README에서 각 파일과 심볼화 방법을 설명합니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Eén map per crash. Een README in het archief beschrijft elk bestand en hoe je het symboliseert."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Uma pasta por falha. Um README no arquivo explica cada arquivo e como simbolizá-lo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Одна папка на каждый сбой. Файл README в архиве описывает каждый файл и способ его символизации."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "每次崩溃一个文件夹。归档中的 README 说明了每个文件以及如何对其进行符号化。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "每次當機一個檔案夾。封存中的 README 說明每個檔案以及如何進行符號化。"
+          }
+        }
+      }
+    },
     "One line of ordinary copy, with the modes you have switched on applied to it.": {
       "comment": "Footer under the Sample section",
       "localizations": {
@@ -44867,6 +46119,257 @@
         }
       }
     },
+    "Preparing archive of %lld crashes…": {
+      "comment": "Progress row shown while the crash export archive is being written",
+      "localizations": {
+        "ar": {
+          "variations": {
+            "plural": {
+              "few": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "جارٍ تحضير أرشيف لـ %lld أعطال…"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "جارٍ تحضير أرشيف لـ %lld عطلًا…"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "جارٍ تحضير أرشيف لـ %lld عطل…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "جارٍ تحضير أرشيف لـ %lld عطل…"
+                }
+              },
+              "two": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "جارٍ تحضير أرشيف لـ %lld عطلين…"
+                }
+              },
+              "zero": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "جارٍ تحضير أرشيف لـ %lld عطل…"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Archiv mit %lld Absturz wird vorbereitet…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Archiv mit %lld Abstürzen wird vorbereitet…"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Preparing archive of %lld crash…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Preparing archive of %lld crashes…"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Preparando el archivo de %lld fallo…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Preparando el archivo de %lld fallos…"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Préparation de l’archive de %lld plantage…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Préparation de l’archive de %lld plantages…"
+                }
+              }
+            }
+          }
+        },
+        "it": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Preparazione dell’archivio di %lld crash…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Preparazione dell’archivio di %lld crash…"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld件のクラッシュのアーカイブを準備中…"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "충돌 %lld개의 아카이브를 준비하는 중…"
+                }
+              }
+            }
+          }
+        },
+        "nl": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Archief van %lld crash wordt voorbereid…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Archief van %lld crashes wordt voorbereid…"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Preparando arquivo de %lld falha…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Preparando arquivo de %lld falhas…"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "few": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Подготовка архива из %lld сбоев…"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Подготовка архива из %lld сбоев…"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Подготовка архива из %lld сбоя…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "Подготовка архива из %lld сбоев…"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "正在准备 %lld 次崩溃的归档…"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "正在準備 %lld 次當機的封存…"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Preparing archive of %lld requests…": {
       "comment": "Progress row shown while the export archive is being written",
       "localizations": {
@@ -46654,6 +48157,83 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "重送"
+          }
+        }
+      }
+    },
+    "Raw MetricKit diagnostic": {
+      "comment": "Export contents row: the unmodified MetricKit diagnostic JSON",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "تشخيص MetricKit الخام"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Unbearbeitete MetricKit-Diagnose"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Diagnóstico de MetricKit sin procesar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Diagnostic MetricKit brut"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Diagnostica MetricKit originale"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MetricKitの未加工の診断データ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "원본 MetricKit 진단"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Onbewerkte MetricKit-diagnose"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Diagnóstico bruto do MetricKit"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Исходная диагностика MetricKit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "原始 MetricKit 诊断"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "原始 MetricKit 診斷"
           }
         }
       }
@@ -48656,6 +50236,83 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "將標頭、URL、內容和 cURL 指令中常見的權杖、Cookie、密碼和 API 金鑰替換為 REDACTED。這只是一種嘗試，並不保證隱私安全。"
+          }
+        }
+      }
+    },
+    "Replaces common tokens, cookies, passwords, and API keys in the console output and network traffic with REDACTED. This is an attempt, not a guarantee of privacy.": {
+      "comment": "Footer under the crash export redaction toggle. REDACTED is a literal placeholder; keep it in English",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "يستبدل الرموز وملفات تعريف الارتباط وكلمات المرور ومفاتيح API الشائعة في مخرجات وحدة التحكم وحركة الشبكة بـ REDACTED. هذه محاولة وليست ضمانًا للخصوصية."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ersetzt gängige Token, Cookies, Passwörter und API-Schlüssel in der Konsolenausgabe und im Netzwerkverkehr durch REDACTED. Dies ist ein Versuch, keine Garantie für Datenschutz."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sustituye tokens, cookies, contraseñas y claves de API comunes en la salida de consola y el tráfico de red por REDACTED. Es un intento, no una garantía de privacidad."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Remplace les jetons, cookies, mots de passe et clés d’API courants de la sortie console et du trafic réseau par REDACTED. Il s’agit d’une tentative, pas d’une garantie de confidentialité."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sostituisce token, cookie, password e chiavi API comuni nell’output della console e nel traffico di rete con REDACTED. È un tentativo, non una garanzia di privacy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "コンソール出力とネットワーク通信に含まれる一般的なトークン、Cookie、パスワード、APIキーをREDACTEDに置き換えます。プライバシーを保証するものではなく、あくまで試みです。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "콘솔 출력과 네트워크 트래픽의 일반적인 토큰, 쿠키, 비밀번호, API 키를 REDACTED로 바꿉니다. 이는 시도일 뿐 개인정보 보호를 보장하지 않습니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Vervangt veelvoorkomende tokens, cookies, wachtwoorden en API-sleutels in de console-uitvoer en het netwerkverkeer door REDACTED. Dit is een poging, geen garantie voor privacy."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Substitui tokens, cookies, senhas e chaves de API comuns na saída do console e no tráfego de rede por REDACTED. É uma tentativa, não uma garantia de privacidade."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Заменяет распространённые токены, файлы cookie, пароли и ключи API в выводе консоли и сетевом трафике на REDACTED. Это попытка, а не гарантия конфиденциальности."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "将控制台输出和网络流量中常见的令牌、Cookie、密码和 API 密钥替换为 REDACTED。这只是一种尝试，并不能保证隐私。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "將主控台輸出和網路流量中常見的權杖、Cookie、密碼和 API 金鑰替換為 REDACTED。這只是嘗試，並不保證隱私。"
           }
         }
       }
@@ -56514,6 +58171,83 @@
         }
       }
     },
+    "Source": {
+      "comment": "Label in crash details for how the crash was captured: the exception handler or MetricKit",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "المصدر"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Quelle"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Origen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Source"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Origine"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "取得元"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "출처"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Bron"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Origem"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Источник"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "来源"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "來源"
+          }
+        }
+      }
+    },
     "St. Julian, Malta": {
       "comment": "Location preset name",
       "localizations": {
@@ -59205,6 +60939,160 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "App 語言將在下次啟動時變更。Scyther 選單已經切換。"
+          }
+        }
+      }
+    },
+    "The archive contains stack traces and device details. Handle and share it with care.": {
+      "comment": "Warning before sharing a crash archive with no session logs",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "يحتوي الأرشيف على تتبعات المكدس وتفاصيل الجهاز. تعامل معه وشاركه بحذر."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Das Archiv enthält Stack-Traces und Gerätedetails. Gehe sorgfältig damit um und teile es mit Bedacht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "El archivo contiene trazas de pila y detalles del dispositivo. Manéjalo y compártelo con cuidado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "L’archive contient des traces d’appels et des informations sur l’appareil. Manipulez-la et partagez-la avec précaution."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "L’archivio contiene stack trace e dettagli del dispositivo. Gestiscilo e condividilo con attenzione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "アーカイブにはスタックトレースとデバイスの詳細が含まれます。取り扱いと共有には注意してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "아카이브에는 스택 추적과 기기 세부 정보가 포함되어 있습니다. 주의해서 다루고 공유하세요."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Het archief bevat stacktraces en apparaatgegevens. Ga er zorgvuldig mee om en deel het met beleid."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "O arquivo contém stack traces e detalhes do dispositivo. Manuseie e compartilhe com cuidado."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Архив содержит трассировки стека и сведения об устройстве. Обращайтесь с ним и делитесь им осторожно."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "归档包含堆栈跟踪和设备详细信息。请谨慎处理和共享。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "封存包含堆疊追蹤和裝置詳細資訊。請謹慎處理和分享。"
+          }
+        }
+      }
+    },
+    "The archive contains the console output and network traffic of the sessions these crashes happened in, including headers, cookies, authentication tokens, and request and response bodies. This data may be extremely sensitive. Handle and share it with extreme care.": {
+      "comment": "Warning before sharing a crash archive that includes session console and network logs",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "يحتوي الأرشيف على مخرجات وحدة التحكم وحركة الشبكة للجلسات التي حدثت فيها هذه الأعطال، بما في ذلك الترويسات وملفات تعريف الارتباط ورموز المصادقة ونصوص الطلبات والاستجابات. قد تكون هذه البيانات حساسة للغاية. تعامل معها وشاركها بحذر شديد."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Das Archiv enthält die Konsolenausgabe und den Netzwerkverkehr der Sitzungen, in denen diese Abstürze aufgetreten sind, einschließlich Header, Cookies, Authentifizierungstoken sowie Anfrage- und Antwort-Bodys. Diese Daten können äußerst sensibel sein. Gehe äußerst sorgfältig damit um und teile sie mit größter Vorsicht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "El archivo contiene la salida de consola y el tráfico de red de las sesiones en las que se produjeron estos fallos, incluidos encabezados, cookies, tokens de autenticación y cuerpos de solicitud y respuesta. Estos datos pueden ser extremadamente sensibles. Manéjalos y compártelos con sumo cuidado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "L’archive contient la sortie console et le trafic réseau des sessions dans lesquelles ces plantages se sont produits, y compris les en-têtes, les cookies, les jetons d’authentification et le corps des requêtes et des réponses. Ces données peuvent être extrêmement sensibles. Manipulez-les et partagez-les avec la plus grande prudence."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "L’archivio contiene l’output della console e il traffico di rete delle sessioni in cui si sono verificati questi crash, inclusi header, cookie, token di autenticazione e corpi di richieste e risposte. Questi dati possono essere estremamente sensibili. Gestiscili e condividili con la massima cautela."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "アーカイブには、これらのクラッシュが発生したセッションのコンソール出力とネットワーク通信が含まれます。ヘッダ、Cookie、認証トークン、リクエストとレスポンスの本文も含まれます。このデータは非常に機密性が高い可能性があります。取り扱いと共有には細心の注意を払ってください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "아카이브에는 이 충돌이 발생한 세션의 콘솔 출력과 네트워크 트래픽이 포함되어 있으며, 헤더, 쿠키, 인증 토큰, 요청 및 응답 본문도 포함됩니다. 이 데이터는 매우 민감할 수 있습니다. 각별히 주의해서 다루고 공유하세요."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Het archief bevat de console-uitvoer en het netwerkverkeer van de sessies waarin deze crashes plaatsvonden, inclusief headers, cookies, authenticatietokens en request- en response-body’s. Deze gegevens kunnen uiterst gevoelig zijn. Ga er uiterst zorgvuldig mee om."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "O arquivo contém a saída do console e o tráfego de rede das sessões em que essas falhas ocorreram, incluindo cabeçalhos, cookies, tokens de autenticação e corpos de solicitações e respostas. Esses dados podem ser extremamente sensíveis. Manuseie e compartilhe com extremo cuidado."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Архив содержит вывод консоли и сетевой трафик сеансов, в которых произошли эти сбои, включая заголовки, файлы cookie, токены аутентификации, а также тела запросов и ответов. Эти данные могут быть крайне конфиденциальными. Обращайтесь с ними и делитесь ими с особой осторожностью."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "归档包含发生这些崩溃的会话的控制台输出和网络流量，包括标头、Cookie、身份验证令牌以及请求和响应正文。这些数据可能极其敏感。请格外谨慎地处理和共享。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "封存包含發生這些當機的工作階段之主控台輸出和網路流量，包括標頭、Cookie、驗證權杖以及請求和回應本文。這些資料可能極為敏感。請格外謹慎地處理和分享。"
           }
         }
       }

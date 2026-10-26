@@ -15,10 +15,12 @@ import SwiftUI
 ///
 /// ## Features
 /// - Exception name and reason display
+/// - Where the crash was captured: the exception handler, or MetricKit on a later launch
 /// - Device and app environment details
 /// - Searchable stack trace with text highlighting
 /// - Copy to clipboard functionality
-/// - Share crash report via system share sheet
+/// - The full report, every thread and binary image included
+/// - Export to a zip archive via ``CrashExportSheet``
 ///
 /// ## Usage
 /// ```swift
@@ -39,6 +41,9 @@ struct CrashDetailsView: View {
     /// The view model managing state and logic for this view.
     @StateObject private var viewModel: CrashDetailsViewModel
 
+    /// The export sheet's view model while the sheet is open.
+    @State private var exportViewModel: CrashExportViewModel?
+
     /// Creates a new crash details view.
     ///
     /// - Parameter crash: The crash log entry to display.
@@ -50,6 +55,10 @@ struct CrashDetailsView: View {
         List {
             Section(localized("Exception")) {
                 LabeledContent(localized("Name"), value: viewModel.crash.name)
+                LabeledContent(localized("Source"), value: viewModel.crash.source.displayName)
+                if let codes = viewModel.exceptionCodes {
+                    LabeledContent(localized("Exception Codes"), value: codes)
+                }
                 if let reason = viewModel.crash.reason {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(localized("Reason"))
@@ -66,11 +75,29 @@ struct CrashDetailsView: View {
                 LabeledContent(localized("Date"), value: viewModel.crash.formattedTimestamp)
             }
 
+            if let region = viewModel.details?.virtualMemoryRegionInfo {
+                Section(localized("Memory Region")) {
+                    Text(region)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                }
+            }
+
             Section(localized("Environment")) {
                 LabeledContent(localized("App Version"), value: viewModel.crash.appVersion)
                 LabeledContent(localized("Build Number"), value: viewModel.crash.buildNumber)
                 LabeledContent(localized("OS Version"), value: viewModel.crash.osVersion)
                 LabeledContent(localized("Device"), value: viewModel.crash.deviceModel)
+            }
+
+            Section {
+                NavigationLink {
+                    TextReaderView(text: viewModel.fullReport, title: localized("Full Report"))
+                } label: {
+                    LabeledContent(localized("Full Report"), value: localized("\(viewModel.threadCount) threads"))
+                }
+            } footer: {
+                Text(localized("Every thread and binary image, in the layout of Apple's crash reports."))
             }
 
             Section {
@@ -111,6 +138,12 @@ struct CrashDetailsView: View {
             }
         }
         .navigationTitle(localized("Crash Details"))
+        .sheet(item: $exportViewModel) { exportViewModel in
+            CrashExportSheet(viewModel: exportViewModel)
+        }
+        .onFirstAppear {
+            await viewModel.onFirstAppear()
+        }
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $viewModel.searchText, prompt: localized("Search stack trace"))
         .toolbar {
@@ -121,8 +154,10 @@ struct CrashDetailsView: View {
                     Label(viewModel.copied ? localized("Copied") : localized("Copy"), systemImage: viewModel.copied ? "checkmark" : "doc.on.doc")
                 }
 
-                ShareLink(item: viewModel.crash.fullReport) {
-                    Label(localized("Share"), systemImage: "square.and.arrow.up")
+                Button {
+                    exportViewModel = viewModel.makeExportViewModel()
+                } label: {
+                    Label(localized("Export"), systemImage: "square.and.arrow.up")
                 }
             }
         }

@@ -583,5 +583,391 @@
     "ko": "지원되지 않음(%@)",
     "ru": "Не поддерживается (%@)",
     "ar": "غير مدعوم (%@)"
+  },
+  "Source": {
+    "comment": "Label in crash details for how the crash was captured: the exception handler or MetricKit",
+    "fr": "Source",
+    "de": "Quelle",
+    "es": "Origen",
+    "it": "Origine",
+    "pt-BR": "Origem",
+    "nl": "Bron",
+    "ja": "取得元",
+    "zh-Hans": "来源",
+    "zh-Hant": "來源",
+    "ko": "출처",
+    "ru": "Источник",
+    "ar": "المصدر"
+  },
+  "Exception Handler": {
+    "comment": "Crash source: captured by the uncaught exception handler as the app crashed",
+    "fr": "Gestionnaire d'exceptions",
+    "de": "Ausnahme-Handler",
+    "es": "Controlador de excepciones",
+    "it": "Gestore delle eccezioni",
+    "pt-BR": "Manipulador de exceções",
+    "nl": "Uitzonderingshandler",
+    "ja": "例外ハンドラ",
+    "zh-Hans": "异常处理程序",
+    "zh-Hant": "例外處理常式",
+    "ko": "예외 처리기",
+    "ru": "Обработчик исключений",
+    "ar": "معالج الاستثناءات"
+  },
+  "MetricKit": {
+    "comment": "Crash source: delivered by Apple's MetricKit framework on a later launch. Product name, do not translate",
+    "fr": "MetricKit",
+    "de": "MetricKit",
+    "es": "MetricKit",
+    "it": "MetricKit",
+    "pt-BR": "MetricKit",
+    "nl": "MetricKit",
+    "ja": "MetricKit",
+    "zh-Hans": "MetricKit",
+    "zh-Hant": "MetricKit",
+    "ko": "MetricKit",
+    "ru": "MetricKit",
+    "ar": "MetricKit"
+  },
+  "Export Crash Report": {
+    "comment": "Title of the sheet that exports crashes to a zip archive",
+    "fr": "Exporter le rapport de plantage",
+    "de": "Absturzbericht exportieren",
+    "es": "Exportar informe de fallos",
+    "it": "Esporta report dei crash",
+    "pt-BR": "Exportar relatório de falhas",
+    "nl": "Crashrapport exporteren",
+    "ja": "クラッシュレポートを書き出す",
+    "zh-Hans": "导出崩溃报告",
+    "zh-Hant": "匯出當機報告",
+    "ko": "충돌 보고서 내보내기",
+    "ru": "Экспорт отчёта о сбоях",
+    "ar": "تصدير تقرير الأعطال"
+  },
+  "The archive contains stack traces and device details. Handle and share it with care.": {
+    "comment": "Warning before sharing a crash archive with no session logs",
+    "fr": "L’archive contient des traces d’appels et des informations sur l’appareil. Manipulez-la et partagez-la avec précaution.",
+    "de": "Das Archiv enthält Stack-Traces und Gerätedetails. Gehe sorgfältig damit um und teile es mit Bedacht.",
+    "es": "El archivo contiene trazas de pila y detalles del dispositivo. Manéjalo y compártelo con cuidado.",
+    "it": "L’archivio contiene stack trace e dettagli del dispositivo. Gestiscilo e condividilo con attenzione.",
+    "pt-BR": "O arquivo contém stack traces e detalhes do dispositivo. Manuseie e compartilhe com cuidado.",
+    "nl": "Het archief bevat stacktraces en apparaatgegevens. Ga er zorgvuldig mee om en deel het met beleid.",
+    "ja": "アーカイブにはスタックトレースとデバイスの詳細が含まれます。取り扱いと共有には注意してください。",
+    "zh-Hans": "归档包含堆栈跟踪和设备详细信息。请谨慎处理和共享。",
+    "zh-Hant": "封存包含堆疊追蹤和裝置詳細資訊。請謹慎處理和分享。",
+    "ko": "아카이브에는 스택 추적과 기기 세부 정보가 포함되어 있습니다. 주의해서 다루고 공유하세요.",
+    "ru": "Архив содержит трассировки стека и сведения об устройстве. Обращайтесь с ним и делитесь им осторожно.",
+    "ar": "يحتوي الأرشيف على تتبعات المكدس وتفاصيل الجهاز. تعامل معه وشاركه بحذر."
+  },
+  "The archive contains the console output and network traffic of the sessions these crashes happened in, including headers, cookies, authentication tokens, and request and response bodies. This data may be extremely sensitive. Handle and share it with extreme care.": {
+    "comment": "Warning before sharing a crash archive that includes session console and network logs",
+    "fr": "L’archive contient la sortie console et le trafic réseau des sessions dans lesquelles ces plantages se sont produits, y compris les en-têtes, les cookies, les jetons d’authentification et le corps des requêtes et des réponses. Ces données peuvent être extrêmement sensibles. Manipulez-les et partagez-les avec la plus grande prudence.",
+    "de": "Das Archiv enthält die Konsolenausgabe und den Netzwerkverkehr der Sitzungen, in denen diese Abstürze aufgetreten sind, einschließlich Header, Cookies, Authentifizierungstoken sowie Anfrage- und Antwort-Bodys. Diese Daten können äußerst sensibel sein. Gehe äußerst sorgfältig damit um und teile sie mit größter Vorsicht.",
+    "es": "El archivo contiene la salida de consola y el tráfico de red de las sesiones en las que se produjeron estos fallos, incluidos encabezados, cookies, tokens de autenticación y cuerpos de solicitud y respuesta. Estos datos pueden ser extremadamente sensibles. Manéjalos y compártelos con sumo cuidado.",
+    "it": "L’archivio contiene l’output della console e il traffico di rete delle sessioni in cui si sono verificati questi crash, inclusi header, cookie, token di autenticazione e corpi di richieste e risposte. Questi dati possono essere estremamente sensibili. Gestiscili e condividili con la massima cautela.",
+    "pt-BR": "O arquivo contém a saída do console e o tráfego de rede das sessões em que essas falhas ocorreram, incluindo cabeçalhos, cookies, tokens de autenticação e corpos de solicitações e respostas. Esses dados podem ser extremamente sensíveis. Manuseie e compartilhe com extremo cuidado.",
+    "nl": "Het archief bevat de console-uitvoer en het netwerkverkeer van de sessies waarin deze crashes plaatsvonden, inclusief headers, cookies, authenticatietokens en request- en response-body’s. Deze gegevens kunnen uiterst gevoelig zijn. Ga er uiterst zorgvuldig mee om.",
+    "ja": "アーカイブには、これらのクラッシュが発生したセッションのコンソール出力とネットワーク通信が含まれます。ヘッダ、Cookie、認証トークン、リクエストとレスポンスの本文も含まれます。このデータは非常に機密性が高い可能性があります。取り扱いと共有には細心の注意を払ってください。",
+    "zh-Hans": "归档包含发生这些崩溃的会话的控制台输出和网络流量，包括标头、Cookie、身份验证令牌以及请求和响应正文。这些数据可能极其敏感。请格外谨慎地处理和共享。",
+    "zh-Hant": "封存包含發生這些當機的工作階段之主控台輸出和網路流量，包括標頭、Cookie、驗證權杖以及請求和回應本文。這些資料可能極為敏感。請格外謹慎地處理和分享。",
+    "ko": "아카이브에는 이 충돌이 발생한 세션의 콘솔 출력과 네트워크 트래픽이 포함되어 있으며, 헤더, 쿠키, 인증 토큰, 요청 및 응답 본문도 포함됩니다. 이 데이터는 매우 민감할 수 있습니다. 각별히 주의해서 다루고 공유하세요.",
+    "ru": "Архив содержит вывод консоли и сетевой трафик сеансов, в которых произошли эти сбои, включая заголовки, файлы cookie, токены аутентификации, а также тела запросов и ответов. Эти данные могут быть крайне конфиденциальными. Обращайтесь с ними и делитесь ими с особой осторожностью.",
+    "ar": "يحتوي الأرشيف على مخرجات وحدة التحكم وحركة الشبكة للجلسات التي حدثت فيها هذه الأعطال، بما في ذلك الترويسات وملفات تعريف الارتباط ورموز المصادقة ونصوص الطلبات والاستجابات. قد تكون هذه البيانات حساسة للغاية. تعامل معها وشاركها بحذر شديد."
+  },
+  "Crashes": {
+    "comment": "Label for the number of crashes in an export archive",
+    "fr": "Plantages",
+    "de": "Abstürze",
+    "es": "Fallos",
+    "it": "Crash",
+    "pt-BR": "Falhas",
+    "nl": "Crashes",
+    "ja": "クラッシュ",
+    "zh-Hans": "崩溃",
+    "zh-Hant": "當機",
+    "ko": "충돌",
+    "ru": "Сбои",
+    "ar": "الأعطال"
+  },
+  "Crash report with symbolication commands": {
+    "comment": "Export contents row: the text crash report, with atos commands",
+    "fr": "Rapport de plantage avec commandes de symbolisation",
+    "de": "Absturzbericht mit Symbolisierungsbefehlen",
+    "es": "Informe de fallo con comandos de simbolización",
+    "it": "Report del crash con comandi di simbolizzazione",
+    "pt-BR": "Relatório de falha com comandos de simbolização",
+    "nl": "Crashrapport met symbolicatieopdrachten",
+    "ja": "シンボル化コマンド付きのクラッシュレポート",
+    "zh-Hans": "附带符号化命令的崩溃报告",
+    "zh-Hant": "附帶符號化指令的當機報告",
+    "ko": "심볼화 명령이 포함된 충돌 보고서",
+    "ru": "Отчёт о сбое с командами символизации",
+    "ar": "تقرير العطل مع أوامر الترميز"
+  },
+  "IPS file for Xcode and Console": {
+    "comment": "Export contents row: the .ips crash file",
+    "fr": "Fichier IPS pour Xcode et Console",
+    "de": "IPS-Datei für Xcode und Konsole",
+    "es": "Archivo IPS para Xcode y Consola",
+    "it": "File IPS per Xcode e Console",
+    "pt-BR": "Arquivo IPS para Xcode e Console",
+    "nl": "IPS-bestand voor Xcode en Console",
+    "ja": "Xcodeとコンソール用のIPSファイル",
+    "zh-Hans": "适用于 Xcode 和控制台的 IPS 文件",
+    "zh-Hant": "適用於 Xcode 和主控台的 IPS 檔案",
+    "ko": "Xcode 및 콘솔용 IPS 파일",
+    "ru": "Файл IPS для Xcode и Консоли",
+    "ar": "ملف IPS لـ Xcode ووحدة التحكم"
+  },
+  "Raw MetricKit diagnostic": {
+    "comment": "Export contents row: the unmodified MetricKit diagnostic JSON",
+    "fr": "Diagnostic MetricKit brut",
+    "de": "Unbearbeitete MetricKit-Diagnose",
+    "es": "Diagnóstico de MetricKit sin procesar",
+    "it": "Diagnostica MetricKit originale",
+    "pt-BR": "Diagnóstico bruto do MetricKit",
+    "nl": "Onbewerkte MetricKit-diagnose",
+    "ja": "MetricKitの未加工の診断データ",
+    "zh-Hans": "原始 MetricKit 诊断",
+    "zh-Hant": "原始 MetricKit 診斷",
+    "ko": "원본 MetricKit 진단",
+    "ru": "Исходная диагностика MetricKit",
+    "ar": "تشخيص MetricKit الخام"
+  },
+  "Console output of the crashed session": {
+    "comment": "Export contents row: console log of the session that crashed",
+    "fr": "Sortie console de la session plantée",
+    "de": "Konsolenausgabe der abgestürzten Sitzung",
+    "es": "Salida de consola de la sesión que falló",
+    "it": "Output della console della sessione andata in crash",
+    "pt-BR": "Saída do console da sessão que falhou",
+    "nl": "Console-uitvoer van de gecrashte sessie",
+    "ja": "クラッシュしたセッションのコンソール出力",
+    "zh-Hans": "崩溃会话的控制台输出",
+    "zh-Hant": "當機工作階段的主控台輸出",
+    "ko": "충돌한 세션의 콘솔 출력",
+    "ru": "Вывод консоли сеанса со сбоем",
+    "ar": "مخرجات وحدة التحكم للجلسة المتعطلة"
+  },
+  "Network requests of the crashed session": {
+    "comment": "Export contents row: network log of the session that crashed",
+    "fr": "Requêtes réseau de la session plantée",
+    "de": "Netzwerkanfragen der abgestürzten Sitzung",
+    "es": "Solicitudes de red de la sesión que falló",
+    "it": "Richieste di rete della sessione andata in crash",
+    "pt-BR": "Solicitações de rede da sessão que falhou",
+    "nl": "Netwerkverzoeken van de gecrashte sessie",
+    "ja": "クラッシュしたセッションのネットワークリクエスト",
+    "zh-Hans": "崩溃会话的网络请求",
+    "zh-Hant": "當機工作階段的網路請求",
+    "ko": "충돌한 세션의 네트워크 요청",
+    "ru": "Сетевые запросы сеанса со сбоем",
+    "ar": "طلبات الشبكة للجلسة المتعطلة"
+  },
+  "One folder per crash. A README in the archive explains each file and how to symbolicate it.": {
+    "comment": "Footer under the crash export contents",
+    "fr": "Un dossier par plantage. Un fichier README dans l’archive décrit chaque fichier et explique comment le symboliser.",
+    "de": "Ein Ordner pro Absturz. Eine README im Archiv erklärt jede Datei und wie sie symbolisiert wird.",
+    "es": "Una carpeta por fallo. Un README en el archivo explica cada archivo y cómo simbolizarlo.",
+    "it": "Una cartella per ogni crash. Un README nell’archivio descrive ogni file e come simbolizzarlo.",
+    "pt-BR": "Uma pasta por falha. Um README no arquivo explica cada arquivo e como simbolizá-lo.",
+    "nl": "Eén map per crash. Een README in het archief beschrijft elk bestand en hoe je het symboliseert.",
+    "ja": "クラッシュごとに1つのフォルダ。アーカイブ内のREADMEで、各ファイルとシンボル化の方法を説明しています。",
+    "zh-Hans": "每次崩溃一个文件夹。归档中的 README 说明了每个文件以及如何对其进行符号化。",
+    "zh-Hant": "每次當機一個檔案夾。封存中的 README 說明每個檔案以及如何進行符號化。",
+    "ko": "충돌마다 폴더가 하나씩 있습니다. 아카이브의 README에서 각 파일과 심볼화 방법을 설명합니다.",
+    "ru": "Одна папка на каждый сбой. Файл README в архиве описывает каждый файл и способ его символизации.",
+    "ar": "مجلد واحد لكل عطل. يشرح ملف README في الأرشيف كل ملف وكيفية ترميزه."
+  },
+  "Replaces common tokens, cookies, passwords, and API keys in the console output and network traffic with REDACTED. This is an attempt, not a guarantee of privacy.": {
+    "comment": "Footer under the crash export redaction toggle. REDACTED is a literal placeholder; keep it in English",
+    "fr": "Remplace les jetons, cookies, mots de passe et clés d’API courants de la sortie console et du trafic réseau par REDACTED. Il s’agit d’une tentative, pas d’une garantie de confidentialité.",
+    "de": "Ersetzt gängige Token, Cookies, Passwörter und API-Schlüssel in der Konsolenausgabe und im Netzwerkverkehr durch REDACTED. Dies ist ein Versuch, keine Garantie für Datenschutz.",
+    "es": "Sustituye tokens, cookies, contraseñas y claves de API comunes en la salida de consola y el tráfico de red por REDACTED. Es un intento, no una garantía de privacidad.",
+    "it": "Sostituisce token, cookie, password e chiavi API comuni nell’output della console e nel traffico di rete con REDACTED. È un tentativo, non una garanzia di privacy.",
+    "pt-BR": "Substitui tokens, cookies, senhas e chaves de API comuns na saída do console e no tráfego de rede por REDACTED. É uma tentativa, não uma garantia de privacidade.",
+    "nl": "Vervangt veelvoorkomende tokens, cookies, wachtwoorden en API-sleutels in de console-uitvoer en het netwerkverkeer door REDACTED. Dit is een poging, geen garantie voor privacy.",
+    "ja": "コンソール出力とネットワーク通信に含まれる一般的なトークン、Cookie、パスワード、APIキーをREDACTEDに置き換えます。プライバシーを保証するものではなく、あくまで試みです。",
+    "zh-Hans": "将控制台输出和网络流量中常见的令牌、Cookie、密码和 API 密钥替换为 REDACTED。这只是一种尝试，并不能保证隐私。",
+    "zh-Hant": "將主控台輸出和網路流量中常見的權杖、Cookie、密碼和 API 金鑰替換為 REDACTED。這只是嘗試，並不保證隱私。",
+    "ko": "콘솔 출력과 네트워크 트래픽의 일반적인 토큰, 쿠키, 비밀번호, API 키를 REDACTED로 바꿉니다. 이는 시도일 뿐 개인정보 보호를 보장하지 않습니다.",
+    "ru": "Заменяет распространённые токены, файлы cookie, пароли и ключи API в выводе консоли и сетевом трафике на REDACTED. Это попытка, а не гарантия конфиденциальности.",
+    "ar": "يستبدل الرموز وملفات تعريف الارتباط وكلمات المرور ومفاتيح API الشائعة في مخرجات وحدة التحكم وحركة الشبكة بـ REDACTED. هذه محاولة وليست ضمانًا للخصوصية."
+  },
+  "Exception Codes": {
+    "comment": "Label in crash details for the Mach exception codes",
+    "fr": "Codes d’exception",
+    "de": "Ausnahmecodes",
+    "es": "Códigos de excepción",
+    "it": "Codici di eccezione",
+    "pt-BR": "Códigos de exceção",
+    "nl": "Uitzonderingscodes",
+    "ja": "例外コード",
+    "zh-Hans": "异常代码",
+    "zh-Hant": "例外代碼",
+    "ko": "예외 코드",
+    "ru": "Коды исключения",
+    "ar": "رموز الاستثناء"
+  },
+  "Memory Region": {
+    "comment": "Section header in crash details for the virtual memory region around a faulting address",
+    "fr": "Région mémoire",
+    "de": "Speicherbereich",
+    "es": "Región de memoria",
+    "it": "Regione di memoria",
+    "pt-BR": "Região de memória",
+    "nl": "Geheugenregio",
+    "ja": "メモリ領域",
+    "zh-Hans": "内存区域",
+    "zh-Hant": "記憶體區域",
+    "ko": "메모리 영역",
+    "ru": "Область памяти",
+    "ar": "منطقة الذاكرة"
+  },
+  "Full Report": {
+    "comment": "Row in crash details that opens the full text crash report",
+    "fr": "Rapport complet",
+    "de": "Vollständiger Bericht",
+    "es": "Informe completo",
+    "it": "Report completo",
+    "pt-BR": "Relatório completo",
+    "nl": "Volledig rapport",
+    "ja": "完全なレポート",
+    "zh-Hans": "完整报告",
+    "zh-Hant": "完整報告",
+    "ko": "전체 보고서",
+    "ru": "Полный отчёт",
+    "ar": "التقرير الكامل"
+  },
+  "Every thread and binary image, in the layout of Apple's crash reports.": {
+    "comment": "Footer under the Full Report row in crash details",
+    "fr": "Chaque thread et chaque image binaire, dans la présentation des rapports de plantage d’Apple.",
+    "de": "Jeder Thread und jedes Binary-Image im Layout der Absturzberichte von Apple.",
+    "es": "Cada hilo e imagen binaria, con el formato de los informes de fallos de Apple.",
+    "it": "Ogni thread e immagine binaria, nel formato dei report dei crash di Apple.",
+    "pt-BR": "Cada thread e imagem binária, no formato dos relatórios de falhas da Apple.",
+    "nl": "Elke thread en elk binair image, in de opmaak van de crashrapporten van Apple.",
+    "ja": "すべてのスレッドとバイナリイメージを、Appleのクラッシュレポートの形式で表示します。",
+    "zh-Hans": "所有线程和二进制映像，采用 Apple 崩溃报告的格式。",
+    "zh-Hant": "所有執行緒和二進位映像，採用 Apple 當機報告的格式。",
+    "ko": "모든 스레드와 바이너리 이미지를 Apple 충돌 보고서 형식으로 표시합니다.",
+    "ru": "Все потоки и двоичные образы в формате отчётов о сбоях Apple.",
+    "ar": "كل سلسلة وكل صورة ثنائية، بتنسيق تقارير الأعطال من Apple."
+  },
+  "Preparing archive of %lld crashes…": {
+    "comment": "Progress row shown while the crash export archive is being written",
+    "plural": true,
+    "en": {
+      "one": "Preparing archive of %lld crash…",
+      "other": "Preparing archive of %lld crashes…"
+    },
+    "fr": {
+      "one": "Préparation de l’archive de %lld plantage…",
+      "other": "Préparation de l’archive de %lld plantages…"
+    },
+    "de": {
+      "one": "Archiv mit %lld Absturz wird vorbereitet…",
+      "other": "Archiv mit %lld Abstürzen wird vorbereitet…"
+    },
+    "es": {
+      "one": "Preparando el archivo de %lld fallo…",
+      "other": "Preparando el archivo de %lld fallos…"
+    },
+    "it": {
+      "one": "Preparazione dell’archivio di %lld crash…",
+      "other": "Preparazione dell’archivio di %lld crash…"
+    },
+    "pt-BR": {
+      "one": "Preparando arquivo de %lld falha…",
+      "other": "Preparando arquivo de %lld falhas…"
+    },
+    "nl": {
+      "one": "Archief van %lld crash wordt voorbereid…",
+      "other": "Archief van %lld crashes wordt voorbereid…"
+    },
+    "ja": {
+      "other": "%lld件のクラッシュのアーカイブを準備中…"
+    },
+    "zh-Hans": {
+      "other": "正在准备 %lld 次崩溃的归档…"
+    },
+    "zh-Hant": {
+      "other": "正在準備 %lld 次當機的封存…"
+    },
+    "ko": {
+      "other": "충돌 %lld개의 아카이브를 준비하는 중…"
+    },
+    "ru": {
+      "one": "Подготовка архива из %lld сбоя…",
+      "few": "Подготовка архива из %lld сбоев…",
+      "many": "Подготовка архива из %lld сбоев…",
+      "other": "Подготовка архива из %lld сбоев…"
+    },
+    "ar": {
+      "zero": "جارٍ تحضير أرشيف لـ %lld عطل…",
+      "one": "جارٍ تحضير أرشيف لـ %lld عطل…",
+      "two": "جارٍ تحضير أرشيف لـ %lld عطلين…",
+      "few": "جارٍ تحضير أرشيف لـ %lld أعطال…",
+      "many": "جارٍ تحضير أرشيف لـ %lld عطلًا…",
+      "other": "جارٍ تحضير أرشيف لـ %lld عطل…"
+    }
+  },
+  "%lld threads": {
+    "comment": "Value of the Full Report row: how many threads the crash report holds",
+    "plural": true,
+    "en": {
+      "one": "%lld thread",
+      "other": "%lld threads"
+    },
+    "fr": {
+      "one": "%lld thread",
+      "other": "%lld threads"
+    },
+    "de": {
+      "one": "%lld Thread",
+      "other": "%lld Threads"
+    },
+    "es": {
+      "one": "%lld hilo",
+      "other": "%lld hilos"
+    },
+    "it": {
+      "one": "%lld thread",
+      "other": "%lld thread"
+    },
+    "pt-BR": {
+      "one": "%lld thread",
+      "other": "%lld threads"
+    },
+    "nl": {
+      "one": "%lld thread",
+      "other": "%lld threads"
+    },
+    "ja": {
+      "other": "%lld個のスレッド"
+    },
+    "zh-Hans": {
+      "other": "%lld 个线程"
+    },
+    "zh-Hant": {
+      "other": "%lld 個執行緒"
+    },
+    "ko": {
+      "other": "스레드 %lld개"
+    },
+    "ru": {
+      "one": "%lld поток",
+      "few": "%lld потока",
+      "many": "%lld потоков",
+      "other": "%lld потока"
+    },
+    "ar": {
+      "zero": "%lld سلسلة",
+      "one": "سلسلة واحدة",
+      "two": "سلسلتان",
+      "few": "%lld سلاسل",
+      "many": "%lld سلسلة",
+      "other": "%lld سلسلة"
+    }
   }
 }

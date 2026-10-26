@@ -21,6 +21,7 @@ import Foundation
 /// - App version and build number at time of crash
 /// - iOS version and device model
 /// - Precise timestamp
+/// - Where it was captured: the exception handler, or MetricKit on a later launch
 ///
 /// ## Usage
 /// ```swift
@@ -53,6 +54,8 @@ import Foundation
 /// - ``buildNumber``
 /// - ``osVersion``
 /// - ``deviceModel``
+/// - ``source``
+/// - ``sessionID``
 ///
 /// ### Computed Properties
 /// - ``formattedTimestamp``
@@ -86,6 +89,16 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
     /// Device model when crash occurred.
     public let deviceModel: String
 
+    /// How the crash was captured.
+    ///
+    /// An entry stored without a source decodes as ``CrashLogSource/exceptionHandler``, the only
+    /// path that writes entries without one.
+    public let source: CrashLogSource
+
+    /// The ``SessionJournal`` session the crash happened in, whose console output and network
+    /// traffic go into the crash's export — or `nil` if it is not known.
+    public let sessionID: UUID?
+
     /// Creates a new crash log entry.
     public init(
         id: UUID = UUID(),
@@ -96,7 +109,9 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         appVersion: String,
         buildNumber: String,
         osVersion: String,
-        deviceModel: String
+        deviceModel: String,
+        source: CrashLogSource = .exceptionHandler,
+        sessionID: UUID? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -107,6 +122,28 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         self.buildNumber = buildNumber
         self.osVersion = osVersion
         self.deviceModel = deviceModel
+        self.source = source
+        self.sessionID = sessionID
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, timestamp, name, reason, stackTrace, appVersion, buildNumber, osVersion, deviceModel, source, sessionID
+    }
+
+    /// Decodes an entry, defaulting ``source`` when it is absent.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        name = try container.decode(String.self, forKey: .name)
+        reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        stackTrace = try container.decode([String].self, forKey: .stackTrace)
+        appVersion = try container.decode(String.self, forKey: .appVersion)
+        buildNumber = try container.decode(String.self, forKey: .buildNumber)
+        osVersion = try container.decode(String.self, forKey: .osVersion)
+        deviceModel = try container.decode(String.self, forKey: .deviceModel)
+        source = try container.decodeIfPresent(CrashLogSource.self, forKey: .source) ?? .exceptionHandler
+        sessionID = try container.decodeIfPresent(UUID.self, forKey: .sessionID)
     }
 
     /// Formatted timestamp for display.
@@ -131,6 +168,7 @@ public struct CrashLogEntry: Identifiable, Codable, Equatable, Sendable {
         Date: \(formattedTimestamp)
         Exception: \(name)
         Reason: \(reason ?? "Unknown")
+        Source: \(source.reportName)
 
         Device: \(deviceModel)
         OS Version: \(osVersion)

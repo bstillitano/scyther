@@ -27,11 +27,13 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
 
+      # `--triple` rather than `-Xswiftc -target`: the target has to reach clang as well, which
+      # compiles the Objective-C `ScytherBootstrap` target against the same SDK.
       - name: Build Release
         run: |
           swift build -c release \
             --sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
-            -Xswiftc -target -Xswiftc arm64-apple-ios16.0-simulator
+            --triple arm64-apple-ios16.0-simulator
 
   test:
     name: Run Tests

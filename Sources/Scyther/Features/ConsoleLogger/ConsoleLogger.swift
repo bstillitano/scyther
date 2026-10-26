@@ -229,6 +229,9 @@ public final class ConsoleLogger: @unchecked Sendable {
         logsQueue.async(flags: .barrier) {
             self.logs.removeAll()
         }
+        // The session journal's copy goes too, so a crash export never carries output the
+        // developer cleared.
+        SessionJournal.shared.clearConsoleLogs()
         NotificationCenter.default.post(name: .ConsoleLoggerDidLog, object: nil)
     }
 
@@ -308,6 +311,9 @@ public final class ConsoleLogger: @unchecked Sendable {
     private func addLog(message: String, source: ConsoleLogEntry.LogSource) {
         // Split by newlines and create separate entries for each line
         let lines = message.components(separatedBy: .newlines).filter { !$0.isEmpty }
+
+        // Also written to disk, so a crash can be exported with the console output that led to it.
+        SessionJournal.shared.recordConsole(lines, source: source.rawValue)
 
         logsQueue.async(flags: .barrier) {
             for line in lines {

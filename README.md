@@ -82,7 +82,7 @@ A comprehensive iOS debugging toolkit that helps you cut through bugs in your iO
 - **Custom Locations**: Set any coordinate manually
 - **Route Simulation**: Simulate movement along predefined routes
 - **Deep Link Tester**: Test custom URL schemes and universal links with QR scanner
-- **Crash Logging**: Capture and view uncaught exceptions on subsequent app launches
+- **Crash Logging**: Capture uncaught exceptions as they happen, and Swift traps, `EXC_BAD_ACCESS` and aborts through MetricKit on device. Export them as a zip with an Apple-format report, an `.ips` file, and the console output and network traffic of the session that crashed
 
 ### Notifications
 - **Push Notification Tester**: Schedule local test notifications
@@ -131,6 +131,8 @@ Scyther is fully compatible with Swift 6 strict concurrency checking. The librar
 | `Scyther.network` | `@MainActor` | Network facade |
 | `Scyther.console` | `@MainActor` | Console capture facade |
 | `Scyther.crashes` | `@MainActor` | Crash logging facade |
+| `CrashLogger` | `@unchecked Sendable` | Crash store; every read-modify-write takes one recursive lock, so the exception handler, MetricKit and Clear never lose each other's writes |
+| `SessionJournal` | `@unchecked Sendable` | Writes each launch's console output and requests to disk on a private serial queue |
 | `Scyther.interface` | `@MainActor` | UI tools facade |
 | `Scyther.location` | `@MainActor` | Location spoofing facade |
 | `Scyther.localization` | `@unchecked Sendable` | `LanguageOverride`, lock-guarded language override facade |
@@ -157,6 +159,8 @@ Key public types conform to `Sendable` for safe cross-actor usage:
 - `Route` - Location simulation routes
 - `ConsoleLogEntry` - Captured console output
 - `CrashLogEntry` - Captured crash data
+- `CrashLogSource` - Whether a crash came from the exception handler or MetricKit
+- `CrashDetails` - A crash's threads, binary images and exception codes
 
 ### Performance Optimizations
 
@@ -397,6 +401,8 @@ the top of the screen.
 
 ### Swift Package Manager
 
+Swift Package Manager is the only supported integration. CocoaPods support has been removed.
+
 Add Scyther to your `Package.swift`:
 
 ```swift
@@ -604,6 +610,29 @@ class AppCoordinator: ScytherDelegate {
 ### Network Logging
 
 All HTTP requests made through `URLSession` are automatically intercepted and logged.
+
+#### Startup order does not matter
+
+A session copies its configuration when it is created, so Scyther has to reach the configuration
+before the session exists. The `URLSessionConfiguration` hooks are therefore installed when the
+image loads, by the `ScytherBootstrap` Objective-C target, rather than by `Scyther.start()`. Every
+configuration made with `.default`, `.ephemeral` or `.background(withIdentifier:)` carries
+`HTTPInterceptorURLProtocol` from the moment it exists, so a networking layer built before
+`start()` — by a dependency container, an auth refresher or a cross-platform client — is logged
+from the moment `start()` returns. Requests made before that are not.
+
+The interceptor declines every request until Scyther starts. The hooks run in **every** build,
+including App Store builds that never start Scyther, where each configuration carries one extra
+protocol that declines everything. That is deliberate: it is what lets an App Store build that
+calls `Scyther.start(allowProductionBuilds: true)` part-way through a session, behind an unlock
+code for example, log the sessions it created earlier.
+
+To keep a session out entirely, put `String.noSwizzle` in its identifier:
+
+```swift
+let webhook = URLSessionConfiguration.default(withIdentifier: "webhook_\(String.noSwizzle)")
+let upload = URLSessionConfiguration.background(withIdentifier: "upload_\(String.noSwizzle)")
+```
 
 #### Accessing Network Data
 
@@ -1338,16 +1367,41 @@ Scyther.console.clear()
 
 ### Crash Logging
 
-Capture uncaught exceptions and view them on subsequent app launches. This is useful for debugging crashes that occur during development and testing.
+Capture crashes, view them on subsequent app launches, and export them with everything needed to debug them. This is useful for debugging crashes that occur during development and testing.
 
 #### How It Works
 
-Scyther uses `NSSetUncaughtExceptionHandler` to intercept Objective-C and Swift exceptions before the app terminates. When a crash occurs:
+Scyther captures crashes two ways, and each entry's details show which one recorded it.
 
-1. Exception details are captured (name, reason, stack trace)
-2. Device and app information is recorded
-3. Data is saved to UserDefaults immediately
+**Exception handler.** `NSSetUncaughtExceptionHandler` intercepts Objective-C exceptions before
+the app terminates. When one is raised:
+
+1. Exception details are captured (name, reason, stack trace), and the exception's return
+   addresses are resolved into binary, UUID and offset
+2. Device and app information is recorded, including the hardware model and the OS build
+3. The crash is saved immediately: the entry to `UserDefaults.scyther`, its threads and binary
+   images to `Application Support/Scyther/Crashes/`, and the session journal is flushed
 4. On next launch, the crash is visible in Scyther's Crash Logs viewer
+
+**MetricKit.** Everything else — a Swift force unwrap of `nil` or `fatalError()`
+(`EXC_BREAKPOINT`), `EXC_BAD_ACCESS`, an abort from another runtime — never reaches an exception
+handler. Scyther subscribes to MetricKit, which gets a crash diagnostic from the OS for every
+crash type and delivers it on the **next launch**. Each one becomes a crash log entry:
+
+- **Name**: the Mach exception and signal, such as `EXC_BREAKPOINT (SIGTRAP)`, or the
+  Objective-C exception's name where MetricKit reports one (iOS 17 and later)
+- **Reason**: the exception's message, or the system's termination reason
+- **Stack trace**: the crashed thread, as `binary + offset` per frame, with the function name
+  added wherever the running build can name it (an unstripped build of the same version). Every
+  other thread, the binary images and the raw diagnostic are kept for the full report and the
+  export
+- **Timestamp**: the end of the window MetricKit's payload covers; it does not report the moment
+  of the crash itself
+
+An `NSException` crash is reported by both paths, so the MetricKit copy is dropped when the
+exception handler already recorded it, and no diagnostic is ever ingested twice across launches.
+Scyther installs no signal or Mach exception handlers of its own, so it does not compete with
+Crashlytics or Sentry for them, and MetricKit takes any number of subscribers.
 
 #### ⚠️ Important: Initialization Order
 
@@ -1378,6 +1432,8 @@ struct MyApp: App {
 }
 ```
 
+This order matters for the exception handler only. MetricKit capture works whatever the order.
+
 **Why this order?**
 - Scyther saves the existing handler (e.g., Crashlytics) when it starts
 - When a crash occurs, Scyther logs it locally, then forwards to Crashlytics
@@ -1401,17 +1457,84 @@ Scyther.crashes.clear()
 #### Crash Log Details
 
 Each crash log includes:
-- Exception name and reason
+- Exception name and reason, and the Mach exception codes
+- Source: the exception handler, or MetricKit
 - Full stack trace (searchable with highlighting)
 - App version and build number
-- iOS version and device model
+- iOS version and hardware model (such as `iPhone17,1`)
 - Timestamp
+- For `EXC_BAD_ACCESS`, the memory region around the faulting address
+- **Full Report**: every thread and binary image, in the layout of Apple's crash reports
 
 The stack trace is searchable - use the search bar to filter frames and find specific methods, classes, or frameworks. Matching text is highlighted for easy identification.
 
+Every crash also records every thread and the binary images its frames point into, with each
+image's UUID and load address. That is what makes a crash from a release build symbolicatable:
+the UUID ties a frame to the dSYM of the exact build that crashed. The exception handler
+resolves the exception's return addresses into binary and offset as the app dies; MetricKit
+reports them directly. These details are kept in `Application Support/Scyther/Crashes/`, one
+directory per crash, and removed with the crash.
+
+#### Exporting Crashes
+
+The export button on a crash, or on the crash list for every crash shown, builds a zip archive
+with one folder per crash:
+
+```
+<App-Name>-Crash-Report-<timestamp>/
+├── README.txt            what each file is, and how to symbolicate
+└── 01-EXC_BREAKPOINT-2026-10-26-091500/
+    ├── report.txt        the crash in Apple's text layout, every thread, Binary Images, an atos command
+    ├── crash.ips         the crash as an .ips file
+    ├── diagnostic.json   the raw MetricKit diagnostic (MetricKit crashes)
+    ├── console.log       the console output of the session that crashed
+    └── network-log.har   the requests that session completed, as HAR 1.2
+```
+
+`crash.ips` is the JSON crash report format iOS itself writes. Open it in Xcode or Console, or
+symbolicate it with the script that ships inside Xcode:
+
+```sh
+xcrun python3 "$(xcode-select -p)/../SharedFrameworks/CoreSymbolicationDT.framework/Versions/A/Resources/CrashSymbolicator.py" \
+  -d MyApp.app.dSYM -p crash.ips
+```
+
+The sheet works like the network log export: a redaction toggle, on by default, that passes the
+console and network logs through the same redactor, and a sensitivity alert before the share
+sheet. Redaction is best effort, not a guarantee.
+
+#### Session Journal
+
+The console log and the network log live in memory, so a crash takes them with it, and a crash
+MetricKit reports arrives a launch later. So while Scyther is running, each launch's console
+output and completed requests are also written to `Application Support/Scyther/Sessions/`, one
+directory per launch, and a crash is tied to the launch it happened in:
+
+- **Exception handler crashes** belong to the running launch. The journal is flushed before the
+  process dies, so nothing queued is lost.
+- **MetricKit crashes** are matched by the crashed process's identifier from iOS 17, as long as
+  that launch was active in the payload's window. Before iOS 17, a launch is attached only when
+  it is the *only* launch of the crashed build active in the window; a wide window often covers
+  several, and attaching the wrong launch's logs would be worse than attaching none. `report.txt`
+  says how each crash was matched.
+- **MetricKit duplicates of `NSException` crashes** are not listed twice, but what they add —
+  every thread, the exception codes and the raw diagnostic — is folded into the exception
+  handler's crash, so its export has both.
+
+Each file is capped (2 MB of console output, 8 MB of requests) and drops its oldest half when
+full, so the activity nearest a crash survives; the newest entry is always kept, however large.
+The newest 10 launches are kept, plus the newest 10 launches that stored crashes refer to; a
+crash whose launch has been pruned exports without session logs. **Clearing the network log or
+the console also clears their copies in every launch's journal**, so a crash export never carries
+data you cleared. A crash that is not an `NSException` can lose the last moment of writes that
+were still queued when it happened.
+
 #### Testing Crash Capture
 
-In debug builds, you can trigger a test crash:
+On a physical device, Xcode's **Debug ▸ Simulate MetricKit Payloads** delivers a sample crash
+diagnostic, which appears in the crash list as a MetricKit entry.
+
+In debug builds, you can trigger a test exception:
 
 ```swift
 #if DEBUG
@@ -1419,11 +1542,18 @@ Scyther.crashes.triggerTestCrash()
 #endif
 ```
 
+Relaunch, open the crash and export it to see the archive the way a tester would send it.
+
 #### Limitations
 
-- **Swift errors**: Only captures `NSException`-based crashes. Pure Swift `fatalError()` or `preconditionFailure()` may not be captured.
-- **Symbolication**: Stack traces contain memory addresses. Use Xcode's crash log tools for symbolicated traces.
-- **Storage**: Up to 50 crashes are stored (oldest are removed automatically).
+- **Next launch only**: Swift traps and other non-exception crashes appear on the launch after the crash, when MetricKit delivers the diagnostic.
+- **Device only**: The Simulator never delivers MetricKit payloads, so on the Simulator only `NSException` crashes are captured.
+- **No debugger**: A crash that happens with the debugger attached produces no MetricKit diagnostic. Launch from the home screen to test one.
+- **Session logs on disk**: the session journal writes console output and network traffic, bodies included, to the app's container while Scyther runs. It is pruned as described above and is never written on an App Store build that has not started Scyther.
+- **No Swift error message**: MetricKit does not report the message of a Swift trap ("Unexpectedly found nil…"). The stack says where; the exported `console.log` may say why.
+- **Session match before iOS 17**: without a process identifier, a MetricKit crash is tied to its launch only when exactly one launch of the crashed build was active in the payload's window. Otherwise it exports without session logs. `report.txt` says how each crash was matched.
+- **Symbolication**: frames are named on the device only when the running build carries symbols for them, and names are best-effort: a guess too far from any symbol is dropped, so a stripped release build mostly shows `binary + offset`. Export the crash and symbolicate `crash.ips` with the dSYM of the build that crashed, or run the `atos` command at the end of `report.txt`.
+- **Storage**: Up to 50 crashes are stored (oldest are removed automatically), and a crash's threads, images and diagnostic are removed with it.
 
 ---
 
